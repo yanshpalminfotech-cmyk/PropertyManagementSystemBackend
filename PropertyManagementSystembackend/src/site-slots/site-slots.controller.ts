@@ -9,8 +9,9 @@ import { LockSlotDto } from './dto/lock-slot.dto';
 @ApiTags('Site Slots')
 @Controller('site-slots')
 export class SiteSlotsController {
-  constructor(private readonly siteSlotsService: SiteSlotsService) {}
+  constructor(private readonly siteSlotsService: SiteSlotsService) { }
 
+  @ApiBearerAuth()
   @Get(':propertyId/available-slots')
   @ApiOperation({ summary: 'Get available visit slots for a property on a specific date' })
   @ApiParam({ name: 'propertyId', description: 'UUID of the property' })

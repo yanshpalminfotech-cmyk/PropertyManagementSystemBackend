@@ -22,11 +22,11 @@ export class AuthMiddleware implements NestMiddleware {
 
   async use(req: Request & { user?: any; isPublic?: boolean }, res: Response, next: NextFunction) {
 
-    if (req.isPublic) {
+    const authHeader = req.headers.authorization;
+
+    if (req.isPublic && !authHeader) {
       return next();
     }
-
-    const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw new UnauthorizedException('Missing or invalid authorization header');

@@ -46,11 +46,11 @@ export class Token {
     @CreateDateColumn({ name: 'created_at' })
     createdAt!: Date;
 
-    // 🔗 Relation with User
-    @ManyToOne(() => User, (user) => user.tokens, {
-        onDelete: 'CASCADE',
-    })
-    @JoinColumn({ name: 'user_id' })
-    user!: User;
+    // // 🔗 Relation with User (Commented out to decouple from TypeORM metadata logic)
+    // @ManyToOne(() => User, (user) => user.tokens, {
+    //     onDelete: 'CASCADE',
+    // })
+    // @JoinColumn({ name: 'user_id' })
+    // user!: User;
 
 }

@@ -71,9 +71,10 @@ export class Property {
   @Column({ name: 'broker_id', type: 'varchar', length: 36 })
   brokerId!: string;
 
-  @ManyToOne(() => User, (user) => user.properties)
-  @JoinColumn({ name: 'broker_id' })
-  broker!: User;
+  // // 🔗 Relation with User (Commented out to decouple from TypeORM metadata logic)
+  // @ManyToOne(() => User, (user) => user.properties)
+  // @JoinColumn({ name: 'broker_id' })
+  // broker!: User;
 
   @Column({
     name: 'property_type',

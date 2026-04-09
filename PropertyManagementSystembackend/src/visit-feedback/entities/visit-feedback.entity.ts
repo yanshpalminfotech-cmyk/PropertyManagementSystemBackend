@@ -17,9 +17,10 @@ export class VisitFeedback {
   @Index({ unique: true })
   visitRequestId!: string;
 
-  @OneToOne(() => VisitRequest, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'visit_request_id' })
-  visitRequest!: VisitRequest;
+  // // 🔗 Relation with VisitRequest (Commented out to decouple from TypeORM metadata logic)
+  // @OneToOne(() => VisitRequest, { onDelete: 'CASCADE' })
+  // @JoinColumn({ name: 'visit_request_id' })
+  // visitRequest!: VisitRequest;
 
   @Column({
     name: 'interest_level',

@@ -87,12 +87,12 @@ export class User {
     // 🔗 RELATIONS
 
     // 1. User → Refresh Tokens
-    @OneToMany(() => Token, (token) => token.user)
-    tokens!: Token[];
+    // @OneToMany(() => Token, (token) => token.user)
+    // tokens!: Token[];
 
-    // 2. Broker → Properties
-    @OneToMany(() => Property, (property) => property.broker)
-    properties!: Property[];
+    // // 2. Broker → Properties
+    // @OneToMany(() => Property, (property) => property.broker)
+    // properties!: Property[];
 
     // // 3. Customer → Visit Requests
     // @OneToMany(() => VisitRequest, (visit) => visit.customer)

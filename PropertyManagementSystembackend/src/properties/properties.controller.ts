@@ -58,6 +58,7 @@ export class PropertiesController {
       },
     },
   })
+  @ApiBearerAuth()
   async findAll(
     @Query() query: PropertyQueryDto,
     @Request() req: AuthenticatedRequest,
@@ -79,6 +80,7 @@ export class PropertiesController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get property details by ID or Property Code' })
+  @ApiBearerAuth()
   async findOne(
     @Param('id') id: string,
     @Request() req: AuthenticatedRequest,

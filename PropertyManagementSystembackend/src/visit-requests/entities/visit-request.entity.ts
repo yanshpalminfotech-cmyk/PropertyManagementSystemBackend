@@ -32,24 +32,25 @@ export class VisitRequest {
   @Column({ name: 'property_id', type: 'varchar', length: 36 })
   propertyId!: string;
 
-  @ManyToOne(() => Property)
-  @JoinColumn({ name: 'property_id' })
-  property!: Property;
+  // // 🔗 RELATIONS (Commented out to decouple from TypeORM metadata logic)
+  // @ManyToOne(() => Property)
+  // @JoinColumn({ name: 'property_id' })
+  // property!: Property;
 
   @Column({ name: 'customer_id', type: 'varchar', length: 36 })
   @Index('idx_visit_customer')
   customerId!: string;
 
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'customer_id' })
-  customer!: User;
+  // @ManyToOne(() => User)
+  // @JoinColumn({ name: 'customer_id' })
+  // customer!: User;
 
   @Column({ name: 'slot_id', type: 'varchar', length: 36 })
   slotId!: string;
 
-  @ManyToOne(() => SiteSlot)
-  @JoinColumn({ name: 'slot_id' })
-  slot!: SiteSlot;
+  // @ManyToOne(() => SiteSlot)
+  // @JoinColumn({ name: 'slot_id' })
+  // slot!: SiteSlot;
 
   @Column({
     name: 'visit_request_status',

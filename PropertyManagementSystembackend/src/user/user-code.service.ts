@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
-import { User } from './entities/user.entity';
+import { USER_GET_LATEST_CODE_QUERY } from './user.queries';
 
 @Injectable()
 export class UserCodeService {
@@ -12,17 +12,12 @@ export class UserCodeService {
     const currentYear = new Date().getFullYear();
     const prefix = `USR-${currentYear}-`;
 
-    // Fetch the last user code for the current year
-    const lastUser = await manager
-      .createQueryBuilder(User, 'user')
-      .setLock('pessimistic_write')
-      .where('user.user_code LIKE :prefix', { prefix: `${prefix}%` })
-      .orderBy('user.user_code', 'DESC')
-      .getOne();
+    // Fetch the last user code for the current year using raw SQL with FOR UPDATE lock
+    const [lastUser] = await manager.query(USER_GET_LATEST_CODE_QUERY, [`${prefix}%`]);
 
     let nextNumber = 1;
     if (lastUser) {
-      const lastCode = lastUser.userCode;
+      const lastCode = lastUser.user_code; // raw result uses snake_case column name
       const parts = lastCode.split('-');
       const lastNumber = parseInt(parts[parts.length - 1], 10);
       if (!isNaN(lastNumber)) {

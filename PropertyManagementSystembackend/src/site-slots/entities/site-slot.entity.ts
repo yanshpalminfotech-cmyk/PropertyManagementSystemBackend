@@ -33,9 +33,10 @@ export class SiteSlot {
   @Column({ name: 'property_id', type: 'varchar', length: 36 })
   propertyId!: string;
 
-  @ManyToOne(() => Property, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'property_id' })
-  property!: Property;
+  // // 🔗 Relation with Property (Commented out to decouple from TypeORM metadata logic)
+  // @ManyToOne(() => Property, { onDelete: 'CASCADE' })
+  // @JoinColumn({ name: 'property_id' })
+  // property!: Property;
 
   @Column({ name: 'visit_date', type: 'date' })
   visitDate!: string;

@@ -21,9 +21,12 @@ import { NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { AuthMiddleware } from './auth/middleware/auth.middleware';
 import { PublicRouteMiddleware } from './auth/middleware/public.middleware';
+import { DatabaseModule } from './common/database/database.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({
+  imports: [
+    DatabaseModule,
+    ConfigModule.forRoot({
     isGlobal: true,
     load: [configuration],
     validationSchema: configValidationSchema,

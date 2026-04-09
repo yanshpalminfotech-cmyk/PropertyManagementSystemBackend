@@ -1,48 +1,65 @@
 import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
-import { User } from './entities/user.entity';
+import { DatabaseService } from '../common/database/database.service';
 import { STATUS } from '../common/enums/status.constant';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
-
 import { UserCodeService } from './user-code.service';
+import {
+  USER_INSERT_QUERY,
+  USER_FIND_BY_ID_QUERY,
+  USER_UNLOCK_QUERY,
+  USER_SOFT_DELETE_QUERY,
+  USER_FIND_ALL_ACTIVE_QUERY,
+  USER_CHECK_EXISTING_QUERY
+} from './user.queries';
+
+export interface IUser {
+  id: string;
+  userCode: string;
+  name: string;
+  email: string;
+  phone: string;
+  passwordHash?: string;
+  role: string;
+  failedLoginAttempts: number;
+  isLocked: boolean;
+  status: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 @Injectable()
 export class UserService {
   private readonly logger = new Logger(UserService.name);
 
   constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    private readonly dataSource: DataSource,
+    private readonly db: DatabaseService,
     private readonly userCodeService: UserCodeService,
   ) { }
 
   /**
    * Helper to map raw DB results to User entity shape
    */
-  private mapUser(raw: any, isSensitiveRequest = false): any {
+  private mapUser(raw: Record<string, unknown>, isSensitiveRequest = false): IUser | null {
     if (!raw) return null;
 
-    const user: any = {
-      id: raw.id,
-      userCode: raw.user_code,
-      name: raw.name,
-      email: raw.email,
-      phone: raw.phone,
-      passwordHash: raw.password_hash,
-      role: raw.role,
-      failedLoginAttempts: raw.failed_login_attempts,
+    const user: IUser = {
+      id: raw.id as string,
+      userCode: raw.user_code as string,
+      name: raw.name as string,
+      email: raw.email as string,
+      phone: raw.phone as string,
+      passwordHash: raw.password_hash as string,
+      role: raw.role as string,
+      failedLoginAttempts: raw.failed_login_attempts as number,
       isLocked: Boolean(raw.is_locked),
-      status: raw.status,
-      createdAt: raw.created_at,
-      updatedAt: raw.updated_at,
+      status: raw.status as number,
+      createdAt: raw.created_at as Date,
+      updatedAt: raw.updated_at as Date,
     };
 
-    // Conditionally check and handle privacy
     if (!isSensitiveRequest) {
       delete user.passwordHash;
     }
@@ -50,15 +67,12 @@ export class UserService {
     return user;
   }
 
-  async create(createUserDto: CreateUserDto): Promise<any> {
+  async create(createUserDto: CreateUserDto): Promise<IUser | null> {
     const { email, phone, password, role, name } = createUserDto;
 
-    return this.dataSource.transaction(async (manager) => {
-      // Direct SQL check for existing user within transaction
-      const existing = await manager.query(
-        'SELECT id FROM users WHERE email = ? OR phone = ?',
-        [email, phone]
-      );
+    return this.db.transaction(async (conn) => {
+      // Use execute for transactional queries
+      const existing = await this.db.execute(conn, USER_CHECK_EXISTING_QUERY, [email, phone]) as unknown[];
 
       if (existing.length > 0) {
         throw new BadRequestException('User with this email or phone already exists');
@@ -67,18 +81,10 @@ export class UserService {
       const salt = await bcrypt.genSalt();
       const passwordHash = await bcrypt.hash(password, salt);
       const id = uuidv4();
-      
-      // Generate sequential user code with pessimistic locking
-      const userCode = await this.userCodeService.generateNextCode(manager);
 
-      const sql = `
-        INSERT INTO users (
-          id, user_code, name, email, phone, password_hash, 
-          role, failed_login_attempts, is_locked, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `;
+      const userCode = await this.userCodeService.generateNextCode(conn);
 
-      await manager.query(sql, [
+      await this.db.execute(conn, USER_INSERT_QUERY, [
         id,
         userCode,
         name,
@@ -91,24 +97,24 @@ export class UserService {
         STATUS.ACTIVE
       ]);
 
-      const [newUser] = await manager.query('SELECT * FROM users WHERE id = ?', [id]);
+      const [newUser] = await this.db.execute(conn, USER_FIND_BY_ID_QUERY, [id]) as Record<string, unknown>[];
       return this.mapUser(newUser);
     });
   }
 
-  async findAll(): Promise<any[]> {
-    const rows = await this.userRepository.query(
-      'SELECT * FROM users WHERE status = ?',
+  async findAll(): Promise<IUser[]> {
+    const rows = await this.db.query(
+      USER_FIND_ALL_ACTIVE_QUERY,
       [STATUS.ACTIVE]
-    );
-    return rows.map((row: any) => this.mapUser(row));
+    ) as Record<string, unknown>[];
+    return rows.map((row) => this.mapUser(row)).filter((u): u is IUser => u !== null);
   }
 
-  async findOne(id: string): Promise<any> {
-    const [row] = await this.userRepository.query(
-      'SELECT * FROM users WHERE id = ?',
+  async findOne(id: string): Promise<IUser | null> {
+    const [row] = await this.db.query(
+      USER_FIND_BY_ID_QUERY,
       [id]
-    );
+    ) as Record<string, unknown>[];
 
     if (!row) {
       throw new NotFoundException(`User with ID ${id} not found`);
@@ -117,17 +123,16 @@ export class UserService {
     return this.mapUser(row);
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<any> {
-    const [existing] = await this.userRepository.query('SELECT id FROM users WHERE id = ?', [id]);
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<IUser | null> {
+    const [existing] = await this.db.query(USER_FIND_BY_ID_QUERY, [id]) as Record<string, unknown>[];
     if (!existing) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
     const updates: string[] = [];
-    const params: any[] = [];
+    const params: unknown[] = [];
 
-    // Map DTO keys to snake_case
-    const colMap: any = {
+    const colMap: Record<string, string> = {
       userCode: 'user_code',
       passwordHash: 'password_hash',
       failedLoginAttempts: 'failed_login_attempts',
@@ -145,36 +150,36 @@ export class UserService {
 
     if (updates.length > 0) {
       params.push(id);
-      await this.userRepository.query(
+      await this.db.query(
         `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
         params
       );
     }
 
-    const [updated] = await this.userRepository.query('SELECT * FROM users WHERE id = ?', [id]);
+    const [updated] = await this.db.query(USER_FIND_BY_ID_QUERY, [id]) as Record<string, unknown>[];
     return this.mapUser(updated);
   }
 
   async remove(id: string): Promise<void> {
-    const [existing] = await this.userRepository.query('SELECT id FROM users WHERE id = ?', [id]);
+    const [existing] = await this.db.query(USER_FIND_BY_ID_QUERY, [id]) as unknown[];
     if (!existing) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    await this.userRepository.query(
-      'UPDATE users SET status = ? WHERE id = ?',
+    await this.db.query(
+      USER_SOFT_DELETE_QUERY,
       [STATUS.DELETED, id]
     );
   }
 
   async unlock(id: string): Promise<void> {
-    const [existing] = await this.userRepository.query('SELECT id FROM users WHERE id = ?', [id]);
+    const [existing] = await this.db.query(USER_FIND_BY_ID_QUERY, [id]) as unknown[];
     if (!existing) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    await this.userRepository.query(
-      'UPDATE users SET is_locked = 0, failed_login_attempts = 0 WHERE id = ?',
+    await this.db.query(
+      USER_UNLOCK_QUERY,
       [id]
     );
   }

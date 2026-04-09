@@ -5,9 +5,7 @@ import {
   Logger,
   BadRequestException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
-import { Property, PropertyAvailabilityStatus } from './entities/property.entity';
+import { DatabaseService } from '../common/database/database.service';
 import { STATUS } from '../common/enums/status.constant';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
@@ -17,22 +15,106 @@ import { PropertyCodeService } from './property-code.service';
 import type { UserInfo } from '../common/types';
 import { UserRole } from '../user/entities/user.entity';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  PROPERTY_INSERT_QUERY,
+  PROPERTY_FIND_BY_ID_QUERY,
+  PROPERTY_FIND_MINIMAL_QUERY,
+  PROPERTY_SOFT_DELETE_QUERY,
+  PROPERTY_UPDATE_AVAILABILITY_QUERY,
+  PROPERTY_FIND_ALL_BASE_QUERY,
+} from './properties.queries';
+
+export enum PropertyType {
+  RESIDENTIAL = 'RESIDENTIAL',
+  COMMERCIAL = 'COMMERCIAL',
+}
+
+export enum PropertyCategory {
+  BHK1 = '1BHK',
+  BHK2 = '2BHK',
+  BHK3 = '3BHK',
+  VILLA = 'VILLA',
+  PLOT = 'PLOT',
+  SHOP = 'SHOP',
+  OFFICE = 'OFFICE',
+}
+
+export enum TransactionType {
+  SALE = 'SALE',
+  RENT = 'RENT',
+}
+
+export enum PropertyLocation {
+  ADAJAN = 'ADAJAN',
+  VESU = 'VESU',
+  CITYLIGHT = 'CITYLIGHT',
+  PIPLOD = 'PIPLOD',
+  PAL = 'PAL',
+  MAGDALLA = 'MAGDALLA',
+}
+
+export enum FurnishingStatus {
+  FURNISHED = 'FURNISHED',
+  SEMI_FURNISHED = 'SEMI_FURNISHED',
+  UNFURNISHED = 'UNFURNISHED',
+}
+
+export enum PropertyAvailabilityStatus {
+  AVAILABLE = 'AVAILABLE',
+  SOLD = 'SOLD',
+  RENTED = 'RENTED',
+  UNDER_NEGOTIATION = 'UNDER_NEGOTIATION',
+}
+
+export interface IProperty {
+  id: string;
+  propertyCode: string;
+  brokerId: string;
+  propertyType: PropertyType;
+  category: PropertyCategory;
+  transactionType: TransactionType;
+  location: PropertyLocation;
+  address: string;
+  ownerName?: string;
+  ownerMobileNumber?: string;
+  carpetArea: number;
+  builtUpArea: number;
+  price: number;
+  maintenanceCost?: number;
+  brokerCommission?: number;
+  furnishing: FurnishingStatus;
+  parking: boolean;
+  floorNumber?: number;
+  totalFloors?: number;
+  propertyAge?: number;
+  facing?: string;
+  description?: string;
+  amenities?: string;
+  availableForVisit: boolean;
+  propertiesstatus: PropertyAvailabilityStatus;
+  postedDate?: Date;
+  status: number;
+  createdAt: Date;
+  updatedAt: Date;
+  broker?: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+  };
+}
 
 @Injectable()
 export class PropertiesService {
   private readonly logger = new Logger(PropertiesService.name);
 
   constructor(
-    @InjectRepository(Property)
-    private readonly propertyRepository: Repository<Property>,
+    private readonly db: DatabaseService,
     private readonly propertyCodeService: PropertyCodeService,
-    private readonly dataSource: DataSource,
   ) { }
 
   /**
    * Validates business logic for property dimensions and levels.
-   * - Carpet area must be less than built-up area.
-   * - Floor number must be less than or equal to total floors.
    */
   private validatePropertyLogic(
     carpetArea: number,
@@ -53,54 +135,51 @@ export class PropertiesService {
   }
 
   /**
-   * Helper to map raw DB results to camelCase and handle conditional privacy
+   * Helper to map raw DB results to IProperty shape
    */
-  private mapProperty(raw: any, currentUser?: UserInfo): any {
+  private mapProperty(raw: Record<string, unknown>, currentUser?: UserInfo): IProperty | null {
     if (!raw) return null;
 
-    // Map snake_case to camelCase (Manually to stay "raw" and performant)
-    const property: any = {
-      id: raw.id,
-      propertyCode: raw.property_code,
-      brokerId: raw.broker_id,
-      propertyType: raw.property_type,
-      category: raw.category,
-      transactionType: raw.transaction_type,
-      location: raw.location,
-      address: raw.address,
-      ownerName: raw.owner_name,
-      ownerMobileNumber: raw.owner_mobile_number,
+    const property: IProperty = {
+      id: raw.id as string,
+      propertyCode: raw.property_code as string,
+      brokerId: raw.broker_id as string,
+      propertyType: raw.property_type as PropertyType,
+      category: raw.category as PropertyCategory,
+      transactionType: raw.transaction_type as TransactionType,
+      location: raw.location as PropertyLocation,
+      address: raw.address as string,
+      ownerName: raw.owner_name as string,
+      ownerMobileNumber: raw.owner_mobile_number as string,
       carpetArea: Number(raw.carpet_area),
       builtUpArea: Number(raw.built_up_area),
       price: Number(raw.price),
-      maintenanceCost: raw.maintenance_cost ? Number(raw.maintenance_cost) : null,
-      furnishing: raw.furnishing,
+      maintenanceCost: raw.maintenance_cost ? Number(raw.maintenance_cost) : undefined,
+      furnishing: raw.furnishing as FurnishingStatus,
       parking: Boolean(raw.parking),
-      floorNumber: raw.floor_number,
-      totalFloors: raw.total_floors,
-      propertyAge: raw.property_age,
-      facing: raw.facing,
-      description: raw.description,
-      amenities: raw.amenities ?? null,
+      floorNumber: raw.floor_number as number,
+      totalFloors: raw.total_floors as number,
+      propertyAge: raw.property_age as number,
+      facing: raw.facing as string,
+      description: raw.description as string,
+      amenities: (raw.amenities as string) ?? undefined,
       availableForVisit: Boolean(raw.available_for_visit),
-      propertiesstatus: raw.propertiesstatus,
-      brokerCommission: raw.broker_commission ? Number(raw.broker_commission) : null,
-      status: raw.status,
-      createdAt: raw.created_at,
-      updatedAt: raw.updated_at,
+      propertiesstatus: raw.propertiesstatus as PropertyAvailabilityStatus,
+      brokerCommission: raw.broker_commission ? Number(raw.broker_commission) : undefined,
+      status: raw.status as number,
+      createdAt: raw.created_at as Date,
+      updatedAt: raw.updated_at as Date,
     };
 
-    // Include broker if joined
     if (raw.b_id) {
       property.broker = {
-        id: raw.b_id,
-        name: raw.b_name,
-        email: raw.b_email,
-        phone: raw.b_phone,
+        id: raw.b_id as string,
+        name: raw.b_name as string,
+        email: raw.b_email as string,
+        phone: raw.b_phone as string,
       };
     }
 
-    // Conditionally handle privacy based on user role
     const isOwner = currentUser?.role === UserRole.BROKER && property.brokerId === currentUser.id;
     const isAdmin = currentUser?.role === UserRole.ADMIN;
 
@@ -113,8 +192,7 @@ export class PropertiesService {
     return property;
   }
 
-  async create(createPropertyDto: CreatePropertyDto, user: UserInfo) {
-    // Validate business logic
+  async create(createPropertyDto: CreatePropertyDto, user: UserInfo): Promise<IProperty | null> {
     this.validatePropertyLogic(
       createPropertyDto.carpetArea,
       createPropertyDto.builtUpArea,
@@ -122,22 +200,11 @@ export class PropertiesService {
       createPropertyDto.totalFloors
     );
 
-    return this.dataSource.transaction(async (manager) => {
-      const propertyCode = await this.propertyCodeService.generateNextCode(manager);
+    return this.db.transaction(async (conn) => {
+      const propertyCode = await this.propertyCodeService.generateNextCode(conn);
       const id = uuidv4();
 
-      const sql = `
-        INSERT INTO properties (
-          id, property_code, broker_id, property_type, category,
-          transaction_type, location, address, owner_name,
-          owner_mobile_number, carpet_area, built_up_area, price,
-          maintenance_cost, furnishing, parking, floor_number,
-          total_floors, property_age, facing, description, amenities,
-          available_for_visit, propertiesstatus, broker_commission, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `;
-
-      await manager.query(sql, [
+      await this.db.execute(conn, PROPERTY_INSERT_QUERY, [
         id,
         propertyCode,
         user.id,
@@ -166,12 +233,12 @@ export class PropertiesService {
         STATUS.ACTIVE
       ]);
 
-      const [newProperty] = await manager.query('SELECT * FROM properties WHERE id = ?', [id]);
+      const [newProperty] = await this.db.execute(conn, PROPERTY_FIND_BY_ID_QUERY, [id, id, STATUS.ACTIVE]) as Record<string, unknown>[];
       return this.mapProperty(newProperty, user);
     });
   }
 
-  async findAll(query: PropertyQueryDto, currentUser?: UserInfo, brokerId?: string) {
+  async findAll(query: PropertyQueryDto, currentUser?: UserInfo, brokerId?: string): Promise<{ items: IProperty[], total: number, page: number, lastPage: number }> {
     const {
       page = 1,
       limit = 10,
@@ -185,16 +252,9 @@ export class PropertiesService {
     } = query;
     const offset = (page - 1) * limit;
 
-    let sql = `
-      SELECT p.*, 
-             u.id as b_id, u.name as b_name, u.email as b_email, u.phone as b_phone
-      FROM properties p
-      LEFT JOIN users u ON p.broker_id = u.id
-      WHERE 1=1
-    `;
-    const params: any[] = [];
+    let sql = PROPERTY_FIND_ALL_BASE_QUERY;
+    const params: unknown[] = [];
 
-    // Role-based status filter
     if (currentUser?.role === UserRole.ADMIN) {
       if (status && status !== AdminPropertyQueryStatus.ALL) {
         const statusMap: Record<string, number> = {
@@ -236,29 +296,25 @@ export class PropertiesService {
       params.push(maxPrice);
     }
 
-    // dynamic enum filters
     Object.keys(filters).forEach(key => {
       const val = (filters as any)[key];
       if (val) {
-        // Map camelCase DTO keys to snake_case column names if they differ
-        const colMap: any = { propertyType: 'property_type', transactionType: 'transaction_type' };
+        const colMap: Record<string, string> = { propertyType: 'property_type', transactionType: 'transaction_type' };
         const colName = colMap[key] || key;
         sql += ` AND p.${colName} = ?`;
         params.push(val);
       }
     });
 
-    // Handle count query
     const countSql = `SELECT COUNT(*) as total FROM (${sql}) as t`;
-    const [countResult] = await this.propertyRepository.query(countSql, params);
+    const [countResult] = await this.db.query(countSql, params) as { total: number }[];
     const total = Number(countResult.total);
 
-    // Apply pagination
     sql += ` ORDER BY p.created_at DESC LIMIT ? OFFSET ?`;
     params.push(limit, offset);
 
-    const rows = await this.propertyRepository.query(sql, params);
-    const items = rows.map((row: any) => this.mapProperty(row, currentUser));
+    const rows = await this.db.query(sql, params) as Record<string, unknown>[];
+    const items = rows.map((row) => this.mapProperty(row, currentUser)).filter((p): p is IProperty => p !== null);
 
     return {
       items,
@@ -268,15 +324,8 @@ export class PropertiesService {
     };
   }
 
-  async findOne(id: string, currentUser?: UserInfo) {
-    const sql = `
-      SELECT p.*, 
-             u.id as b_id, u.name as b_name, u.email as b_email, u.phone as b_phone
-      FROM properties p
-      LEFT JOIN users u ON p.broker_id = u.id
-      WHERE (p.id = ? OR p.property_code = ?) AND p.status = ?
-    `;
-    const [row] = await this.propertyRepository.query(sql, [id, id, STATUS.ACTIVE]);
+  async findOne(id: string, currentUser?: UserInfo): Promise<IProperty | null> {
+    const [row] = await this.db.query(PROPERTY_FIND_BY_ID_QUERY, [id, id, STATUS.ACTIVE]) as Record<string, unknown>[];
 
     if (!row) {
       throw new NotFoundException(`Property with ID ${id} not found`);
@@ -285,21 +334,17 @@ export class PropertiesService {
     return this.mapProperty(row, currentUser);
   }
 
-  async findMyProperties(query: PropertyQueryDto, user: UserInfo) {
+  async findMyProperties(query: PropertyQueryDto, user: UserInfo): Promise<{ items: IProperty[], total: number, page: number, lastPage: number }> {
     return this.findAll({ ...query }, user, user.id);
   }
 
-  async update(id: string, updatePropertyDto: UpdatePropertyDto, user: UserInfo) {
-    const [existing] = await this.propertyRepository.query(
-      'SELECT id, broker_id, status, carpet_area, built_up_area, floor_number, total_floors FROM properties WHERE (id = ? OR property_code = ?)',
-      [id, id]
-    );
+  async update(id: string, updatePropertyDto: UpdatePropertyDto, user: UserInfo): Promise<IProperty | null> {
+    const [existing] = await this.db.query(PROPERTY_FIND_MINIMAL_QUERY, [id, id]) as Record<string, unknown>[];
 
     if (!existing || existing.status !== STATUS.ACTIVE) {
       throw new NotFoundException(`Property with ID ${id} not found`);
     }
 
-    // Validate business logic with merged values
     const carpetArea = updatePropertyDto.carpetArea !== undefined ? updatePropertyDto.carpetArea : Number(existing.carpet_area);
     const builtUpArea = updatePropertyDto.builtUpArea !== undefined ? updatePropertyDto.builtUpArea : Number(existing.built_up_area);
     const floorNumber = updatePropertyDto.floorNumber !== undefined ? updatePropertyDto.floorNumber : (existing.floor_number !== null ? Number(existing.floor_number) : undefined);
@@ -315,12 +360,9 @@ export class PropertiesService {
       throw new ForbiddenException('You do not have permission to update properties');
     }
 
-    // Dynamically build update SQL
     const updates: string[] = [];
-    const params: any[] = [];
-
-    // Map DTO keys to snake_case
-    const colMap: any = {
+    const params: unknown[] = [];
+    const colMap: Record<string, string> = {
       propertyType: 'property_type',
       transactionType: 'transaction_type',
       ownerName: 'owner_name',
@@ -347,21 +389,18 @@ export class PropertiesService {
 
     if (updates.length > 0) {
       params.push(existing.id);
-      await this.propertyRepository.query(
+      await this.db.query(
         `UPDATE properties SET ${updates.join(', ')} WHERE id = ?`,
         params
       );
     }
 
-    const [updated] = await this.propertyRepository.query('SELECT * FROM properties WHERE id = ?', [existing.id]);
+    const [updated] = await this.db.query(PROPERTY_FIND_BY_ID_QUERY, [existing.id as string, existing.id as string, STATUS.ACTIVE]) as Record<string, unknown>[];
     return this.mapProperty(updated, user);
   }
 
-  async remove(id: string, user: UserInfo) {
-    const [existing] = await this.propertyRepository.query(
-      'SELECT id, broker_id FROM properties WHERE (id = ? OR property_code = ?)',
-      [id, id]
-    );
+  async remove(id: string, user: UserInfo): Promise<{ success: boolean; message: string }> {
+    const [existing] = await this.db.query(PROPERTY_FIND_MINIMAL_QUERY, [id, id]) as Record<string, unknown>[];
 
     if (!existing) {
       throw new NotFoundException(`Property with ID ${id} not found`);
@@ -375,19 +414,13 @@ export class PropertiesService {
       throw new ForbiddenException('You do not have permission to delete properties');
     }
 
-    await this.propertyRepository.query(
-      'UPDATE properties SET status = ? WHERE id = ?',
-      [STATUS.DELETED, existing.id]
-    );
+    await this.db.query(PROPERTY_SOFT_DELETE_QUERY, [STATUS.DELETED, existing.id as string]);
 
     return { success: true, message: 'Property deleted successfully' };
   }
 
-  async updateAvailabilityStatus(id: string, dto: UpdatePropertyAvailabilityDto, user: UserInfo) {
-    const [existing] = await this.propertyRepository.query(
-      'SELECT id, broker_id, status FROM properties WHERE (id = ? OR property_code = ?)',
-      [id, id]
-    );
+  async updateAvailabilityStatus(id: string, dto: UpdatePropertyAvailabilityDto, user: UserInfo): Promise<IProperty | null> {
+    const [existing] = await this.db.query(PROPERTY_FIND_MINIMAL_QUERY, [id, id]) as Record<string, unknown>[];
 
     if (!existing || existing.status !== STATUS.ACTIVE) {
       throw new NotFoundException(`Property with ID ${id} not found`);
@@ -401,12 +434,9 @@ export class PropertiesService {
       throw new ForbiddenException('You do not have permission to update property status');
     }
 
-    await this.propertyRepository.query(
-      'UPDATE properties SET propertiesstatus = ? WHERE id = ?',
-      [dto.propertiesstatus, existing.id]
-    );
+    await this.db.query(PROPERTY_UPDATE_AVAILABILITY_QUERY, [dto.propertiesstatus, existing.id as string]);
 
-    const [updated] = await this.propertyRepository.query('SELECT * FROM properties WHERE id = ?', [existing.id]);
+    const [updated] = await this.db.query(PROPERTY_FIND_BY_ID_QUERY, [existing.id as string, existing.id as string, STATUS.ACTIVE]) as Record<string, unknown>[];
     return this.mapProperty(updated, user);
   }
 }
