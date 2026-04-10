@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as mysql from 'mysql';
+import { SqlParam } from '../types';
 
 @Injectable()
 export class DatabaseService implements OnModuleInit, OnModuleDestroy {
@@ -32,7 +33,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   /**
    * Execute a raw SQL query and return a promise.
    */
-  async query<T>(sql: string, params: any[] = []): Promise<T> {
+  async query<T>(sql: string, params: SqlParam[] = []): Promise<T> {
     return new Promise((resolve, reject) => {
       this.pool.query(sql, params, (error, results) => {
         if (error) {
@@ -84,7 +85,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   /**
    * Promisified query for a specific connection (used in transactions)
    */
-  async execute<T>(connection: mysql.PoolConnection, sql: string, params: any[] = []): Promise<T> {
+  async execute<T>(connection: mysql.PoolConnection, sql: string, params: SqlParam[] = []): Promise<T> {
     return new Promise((resolve, reject) => {
       connection.query(sql, params, (error, results) => {
         if (error) return reject(error);

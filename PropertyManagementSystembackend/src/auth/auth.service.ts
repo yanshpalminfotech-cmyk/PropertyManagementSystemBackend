@@ -29,6 +29,32 @@ export enum UserRole {
   CUSTOMER = 'CUSTOMER',
 }
 
+export interface IRawAuthUser {
+  id: string;
+  email: string;
+  role: string;
+  password_hash: string;
+  is_locked: number | boolean;
+  failed_login_attempts: number;
+}
+
+export interface IRawAuthToken {
+  id: string;
+  hashed_token: string;
+  expires_at: Date;
+  token_type: string;
+  is_revoked: number | boolean;
+  user_id: string;
+}
+
+export interface IRawAuthTokenAndUser extends IRawAuthUser {
+  t_id: string;
+}
+
+export interface IIdResult {
+  id: string;
+}
+
 export interface IUser {
   id: string;
   email: string;
@@ -57,15 +83,15 @@ export class AuthService {
   /**
    * Helper to map raw User DB result to IUser shape
    */
-  private mapUser(raw: Record<string, unknown>, isSensitiveRequest = false): IUser | null {
+  private mapUser(raw: IRawAuthUser | null, isSensitiveRequest = false): IUser | null {
     if (!raw) return null;
     const user: IUser = {
-      id: raw.id as string,
-      email: raw.email as string,
+      id: raw.id,
+      email: raw.email,
       role: raw.role as UserRole,
-      passwordHash: raw.password_hash as string,
+      passwordHash: raw.password_hash,
       isLocked: Boolean(raw.is_locked),
-      failedLoginAttempts: raw.failed_login_attempts as number,
+      failedLoginAttempts: raw.failed_login_attempts,
     };
 
     if (!isSensitiveRequest) {
@@ -88,13 +114,13 @@ export class AuthService {
 
     await this.userService.create({
       ...rest,
-      role: role as any, // UserService expect string
+      role,
     });
     return { success: true, message: 'User registered successfully' };
   }
 
   async registerInitialAdmin(registerDto: RegisterDto): Promise<{ success: boolean; message: string }> {
-    const admins = await this.db.query(AUTH_GET_ADMIN_COUNT_QUERY) as unknown[];
+    const admins = await this.db.query(AUTH_GET_ADMIN_COUNT_QUERY) as IIdResult[];
 
     if (admins.length > 0) {
       throw new ForbiddenException('Initial admin registration is disabled as an administrator already exists.');
@@ -111,7 +137,7 @@ export class AuthService {
   async login(loginDto: LoginDto): Promise<{ accessToken: string; refreshToken: string; user: IUser | null }> {
     const { email, password } = loginDto;
 
-    const [row] = await this.db.query(AUTH_FIND_USER_BY_EMAIL_QUERY, [email]) as Record<string, unknown>[];
+    const [row] = await this.db.query(AUTH_FIND_USER_BY_EMAIL_QUERY, [email]) as IRawAuthUser[];
     const user = this.mapUser(row, true);
 
     if (!user) {
@@ -128,8 +154,8 @@ export class AuthService {
       const isLocked = newAttempts >= 5;
 
       await this.db.query(AUTH_UPDATE_FAILED_ATTEMPTS_QUERY, [
-        newAttempts, 
-        isLocked ? 1 : 0, 
+        newAttempts,
+        isLocked ? 1 : 0,
         user.id
       ]);
 
@@ -140,8 +166,8 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user);
     return {
-      ...tokens,
       user: this.mapUser(row, false),
+      ...tokens,
     };
   }
 
@@ -215,7 +241,7 @@ export class AuthService {
     try {
       const hashedToken = this.hashJti(refreshToken);
 
-      const [row] = await this.db.query(AUTH_FIND_VALID_REFRESH_TOKEN_QUERY, [hashedToken, TokenType.REFRESH]) as Record<string, unknown>[];
+      const [row] = await this.db.query(AUTH_FIND_VALID_REFRESH_TOKEN_QUERY, [hashedToken, TokenType.REFRESH]) as IRawAuthTokenAndUser[];
 
       if (!row) {
         throw new UnauthorizedException('Invalid or revoked refresh token');
@@ -241,13 +267,13 @@ export class AuthService {
   }
 
   async findUserById(id: string): Promise<IUser | null> {
-    const [row] = await this.db.query(AUTH_FIND_USER_BY_ID_QUERY, [id]) as Record<string, unknown>[];
+    const [row] = await this.db.query(AUTH_FIND_USER_BY_ID_QUERY, [id]) as IRawAuthUser[];
     return this.mapUser(row, false);
   }
 
   async validateToken(token: string): Promise<boolean> {
     const hashedToken = this.hashJti(token);
-    const tokens = await this.db.query(AUTH_VALIDATE_TOKEN_QUERY, [hashedToken, new Date()]) as unknown[];
+    const tokens = await this.db.query(AUTH_VALIDATE_TOKEN_QUERY, [hashedToken, new Date()]) as IIdResult[];
 
     return tokens.length > 0;
   }

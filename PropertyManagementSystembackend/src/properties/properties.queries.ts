@@ -5,8 +5,8 @@ export const PROPERTY_INSERT_QUERY = `
     owner_mobile_number, carpet_area, built_up_area, price,
     maintenance_cost, furnishing, parking, floor_number,
     total_floors, property_age, facing, description, amenities,
-    available_for_visit, propertiesstatus, broker_commission, status
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    available_for_visit, propertiesstatus, broker_commission, status, status_change_date
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
 `;
 
 export const PROPERTY_FIND_BY_ID_QUERY = `
@@ -26,7 +26,7 @@ export const PROPERTY_SOFT_DELETE_QUERY = `
 `;
 
 export const PROPERTY_UPDATE_AVAILABILITY_QUERY = `
-  UPDATE properties SET propertiesstatus = ?, updated_at = NOW() WHERE id = ?
+  UPDATE properties SET propertiesstatus = ?, status_change_date = ?, updated_at = NOW() WHERE id = ?
 `;
 
 export const PROPERTY_FIND_ALL_BASE_QUERY = `

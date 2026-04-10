@@ -16,7 +16,8 @@ export class PropertyCodeService {
     const prefix = `PROP-${currentYear}-`;
 
     // Fetch the last property code for the current year using raw SQL with FOR UPDATE lock
-    const [lastProperty]: any = await this.db.execute(conn, PROPERTY_GET_LATEST_CODE_QUERY, [`${prefix}%`]);
+    interface ILastProperty { property_code: string; }
+    const [lastProperty] = await this.db.execute(conn, PROPERTY_GET_LATEST_CODE_QUERY, [`${prefix}%`]) as ILastProperty[];
 
     let nextNumber = 1;
     if (lastProperty) {

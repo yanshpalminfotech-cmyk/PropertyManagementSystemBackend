@@ -5,6 +5,7 @@ import {
   Logger,
   BadRequestException,
 } from '@nestjs/common';
+import { SqlParam } from '../common/types';
 import { DatabaseService } from '../common/database/database.service';
 import { STATUS } from '../common/enums/status.constant';
 import { CreatePropertyDto } from './dto/create-property.dto';
@@ -66,6 +67,52 @@ export enum PropertyAvailabilityStatus {
   UNDER_NEGOTIATION = 'UNDER_NEGOTIATION',
 }
 
+export interface IRawProperty {
+  id: string;
+  property_code: string;
+  broker_id: string;
+  property_type: PropertyType;
+  category: PropertyCategory;
+  transaction_type: TransactionType;
+  location: PropertyLocation;
+  address: string;
+  owner_name?: string;
+  owner_mobile_number?: string;
+  carpet_area: number | string;
+  built_up_area: number | string;
+  price: number | string;
+  maintenance_cost?: number | string;
+  furnishing: FurnishingStatus;
+  parking: number | boolean;
+  floor_number?: number;
+  total_floors?: number;
+  property_age?: number;
+  facing?: string;
+  description?: string;
+  amenities?: string;
+  available_for_visit: number | boolean;
+  propertiesstatus: PropertyAvailabilityStatus;
+  broker_commission?: number | string;
+  status: number;
+  created_at: Date;
+  updated_at: Date;
+  status_change_date?: Date | null;
+  b_id?: string;
+  b_name?: string;
+  b_email?: string;
+  b_phone?: string;
+}
+
+export interface IRawPropertyMinimal {
+  id: string;
+  status: number;
+  broker_id: string;
+  carpet_area: number | string;
+  built_up_area: number | string;
+  floor_number?: number;
+  total_floors?: number;
+}
+
 export interface IProperty {
   id: string;
   propertyCode: string;
@@ -96,6 +143,7 @@ export interface IProperty {
   status: number;
   createdAt: Date;
   updatedAt: Date;
+  statusChangeDate?: Date;
   broker?: {
     id: string;
     name: string;
@@ -137,38 +185,39 @@ export class PropertiesService {
   /**
    * Helper to map raw DB results to IProperty shape
    */
-  private mapProperty(raw: Record<string, unknown>, currentUser?: UserInfo): IProperty | null {
+  private mapProperty(raw: IRawProperty | null, currentUser?: UserInfo): IProperty | null {
     if (!raw) return null;
 
     const property: IProperty = {
-      id: raw.id as string,
-      propertyCode: raw.property_code as string,
-      brokerId: raw.broker_id as string,
-      propertyType: raw.property_type as PropertyType,
-      category: raw.category as PropertyCategory,
-      transactionType: raw.transaction_type as TransactionType,
-      location: raw.location as PropertyLocation,
-      address: raw.address as string,
-      ownerName: raw.owner_name as string,
-      ownerMobileNumber: raw.owner_mobile_number as string,
+      id: raw.id,
+      propertyCode: raw.property_code,
+      brokerId: raw.broker_id,
+      propertyType: raw.property_type,
+      category: raw.category,
+      transactionType: raw.transaction_type,
+      location: raw.location,
+      address: raw.address,
+      ownerName: raw.owner_name,
+      ownerMobileNumber: raw.owner_mobile_number,
       carpetArea: Number(raw.carpet_area),
       builtUpArea: Number(raw.built_up_area),
       price: Number(raw.price),
       maintenanceCost: raw.maintenance_cost ? Number(raw.maintenance_cost) : undefined,
-      furnishing: raw.furnishing as FurnishingStatus,
+      furnishing: raw.furnishing,
       parking: Boolean(raw.parking),
-      floorNumber: raw.floor_number as number,
-      totalFloors: raw.total_floors as number,
-      propertyAge: raw.property_age as number,
-      facing: raw.facing as string,
-      description: raw.description as string,
-      amenities: (raw.amenities as string) ?? undefined,
+      floorNumber: raw.floor_number,
+      totalFloors: raw.total_floors,
+      propertyAge: raw.property_age,
+      facing: raw.facing,
+      description: raw.description,
+      amenities: raw.amenities ?? undefined,
       availableForVisit: Boolean(raw.available_for_visit),
-      propertiesstatus: raw.propertiesstatus as PropertyAvailabilityStatus,
+      propertiesstatus: raw.propertiesstatus,
       brokerCommission: raw.broker_commission ? Number(raw.broker_commission) : undefined,
-      status: raw.status as number,
-      createdAt: raw.created_at as Date,
-      updatedAt: raw.updated_at as Date,
+      status: raw.status,
+      createdAt: raw.created_at,
+      updatedAt: raw.updated_at,
+      statusChangeDate: raw.status_change_date ? new Date(raw.status_change_date) : undefined,
     };
 
     if (raw.b_id) {
@@ -233,7 +282,7 @@ export class PropertiesService {
         STATUS.ACTIVE
       ]);
 
-      const [newProperty] = await this.db.execute(conn, PROPERTY_FIND_BY_ID_QUERY, [id, id, STATUS.ACTIVE]) as Record<string, unknown>[];
+      const [newProperty] = await this.db.execute(conn, PROPERTY_FIND_BY_ID_QUERY, [id, id, STATUS.ACTIVE]) as IRawProperty[];
       return this.mapProperty(newProperty, user);
     });
   }
@@ -253,7 +302,7 @@ export class PropertiesService {
     const offset = (page - 1) * limit;
 
     let sql = PROPERTY_FIND_ALL_BASE_QUERY;
-    const params: unknown[] = [];
+    const params: SqlParam[] = [];
 
     if (currentUser?.role === UserRole.ADMIN) {
       if (status && status !== AdminPropertyQueryStatus.ALL) {
@@ -296,13 +345,13 @@ export class PropertiesService {
       params.push(maxPrice);
     }
 
-    Object.keys(filters).forEach(key => {
-      const val = (filters as any)[key];
+    (Object.keys(filters) as Array<keyof typeof filters>).forEach(key => {
+      const val = filters[key];
       if (val) {
         const colMap: Record<string, string> = { propertyType: 'property_type', transactionType: 'transaction_type' };
-        const colName = colMap[key] || key;
+        const colName = colMap[key as string] || (key as string);
         sql += ` AND p.${colName} = ?`;
-        params.push(val);
+        params.push(val as SqlParam);
       }
     });
 
@@ -313,7 +362,7 @@ export class PropertiesService {
     sql += ` ORDER BY p.created_at DESC LIMIT ? OFFSET ?`;
     params.push(limit, offset);
 
-    const rows = await this.db.query(sql, params) as Record<string, unknown>[];
+    const rows = await this.db.query(sql, params) as IRawProperty[];
     const items = rows.map((row) => this.mapProperty(row, currentUser)).filter((p): p is IProperty => p !== null);
 
     return {
@@ -325,7 +374,7 @@ export class PropertiesService {
   }
 
   async findOne(id: string, currentUser?: UserInfo): Promise<IProperty | null> {
-    const [row] = await this.db.query(PROPERTY_FIND_BY_ID_QUERY, [id, id, STATUS.ACTIVE]) as Record<string, unknown>[];
+    const [row] = await this.db.query(PROPERTY_FIND_BY_ID_QUERY, [id, id, STATUS.ACTIVE]) as IRawProperty[];
 
     if (!row) {
       throw new NotFoundException(`Property with ID ${id} not found`);
@@ -339,7 +388,7 @@ export class PropertiesService {
   }
 
   async update(id: string, updatePropertyDto: UpdatePropertyDto, user: UserInfo): Promise<IProperty | null> {
-    const [existing] = await this.db.query(PROPERTY_FIND_MINIMAL_QUERY, [id, id]) as Record<string, unknown>[];
+    const [existing] = await this.db.query(PROPERTY_FIND_MINIMAL_QUERY, [id, id]) as IRawPropertyMinimal[];
 
     if (!existing || existing.status !== STATUS.ACTIVE) {
       throw new NotFoundException(`Property with ID ${id} not found`);
@@ -361,7 +410,7 @@ export class PropertiesService {
     }
 
     const updates: string[] = [];
-    const params: unknown[] = [];
+    const params: SqlParam[] = [];
     const colMap: Record<string, string> = {
       propertyType: 'property_type',
       transactionType: 'transaction_type',
@@ -378,12 +427,12 @@ export class PropertiesService {
       amenities: 'amenities',
     };
 
-    Object.keys(updatePropertyDto).forEach(key => {
-      const val = (updatePropertyDto as any)[key];
+    (Object.keys(updatePropertyDto) as Array<keyof UpdatePropertyDto>).forEach(key => {
+      const val = updatePropertyDto[key];
       if (val !== undefined) {
-        const col = colMap[key] || key;
+        const col = colMap[key as string] || (key as string);
         updates.push(`${col} = ?`);
-        params.push(key === 'availableForVisit' || key === 'parking' ? (val ? 1 : 0) : val);
+        params.push(key === 'availableForVisit' || key === 'parking' ? (val ? 1 : 0) : (val as SqlParam));
       }
     });
 
@@ -395,12 +444,12 @@ export class PropertiesService {
       );
     }
 
-    const [updated] = await this.db.query(PROPERTY_FIND_BY_ID_QUERY, [existing.id as string, existing.id as string, STATUS.ACTIVE]) as Record<string, unknown>[];
+    const [updated] = await this.db.query(PROPERTY_FIND_BY_ID_QUERY, [existing.id, existing.id, STATUS.ACTIVE]) as IRawProperty[];
     return this.mapProperty(updated, user);
   }
 
   async remove(id: string, user: UserInfo): Promise<{ success: boolean; message: string }> {
-    const [existing] = await this.db.query(PROPERTY_FIND_MINIMAL_QUERY, [id, id]) as Record<string, unknown>[];
+    const [existing] = await this.db.query(PROPERTY_FIND_MINIMAL_QUERY, [id, id]) as IRawPropertyMinimal[];
 
     if (!existing) {
       throw new NotFoundException(`Property with ID ${id} not found`);
@@ -414,13 +463,13 @@ export class PropertiesService {
       throw new ForbiddenException('You do not have permission to delete properties');
     }
 
-    await this.db.query(PROPERTY_SOFT_DELETE_QUERY, [STATUS.DELETED, existing.id as string]);
+    await this.db.query(PROPERTY_SOFT_DELETE_QUERY, [STATUS.DELETED, existing.id]);
 
     return { success: true, message: 'Property deleted successfully' };
   }
 
   async updateAvailabilityStatus(id: string, dto: UpdatePropertyAvailabilityDto, user: UserInfo): Promise<IProperty | null> {
-    const [existing] = await this.db.query(PROPERTY_FIND_MINIMAL_QUERY, [id, id]) as Record<string, unknown>[];
+    const [existing] = await this.db.query(PROPERTY_FIND_MINIMAL_QUERY, [id, id]) as IRawPropertyMinimal[];
 
     if (!existing || existing.status !== STATUS.ACTIVE) {
       throw new NotFoundException(`Property with ID ${id} not found`);
@@ -434,9 +483,13 @@ export class PropertiesService {
       throw new ForbiddenException('You do not have permission to update property status');
     }
 
-    await this.db.query(PROPERTY_UPDATE_AVAILABILITY_QUERY, [dto.propertiesstatus, existing.id as string]);
+    const statusChangeDate = (dto.propertiesstatus === PropertyAvailabilityStatus.SOLD || 
+                             dto.propertiesstatus === PropertyAvailabilityStatus.RENTED) 
+                             ? new Date() : null;
 
-    const [updated] = await this.db.query(PROPERTY_FIND_BY_ID_QUERY, [existing.id as string, existing.id as string, STATUS.ACTIVE]) as Record<string, unknown>[];
+    await this.db.query(PROPERTY_UPDATE_AVAILABILITY_QUERY, [dto.propertiesstatus, statusChangeDate, existing.id]);
+
+    const [updated] = await this.db.query(PROPERTY_FIND_BY_ID_QUERY, [existing.id, existing.id, STATUS.ACTIVE]) as IRawProperty[];
     return this.mapProperty(updated, user);
   }
 }

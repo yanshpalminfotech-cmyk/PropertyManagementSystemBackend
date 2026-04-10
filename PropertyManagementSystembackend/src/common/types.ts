@@ -1,6 +1,8 @@
 import { Request } from 'express';
 import { UserRole } from '../user/entities/user.entity';
 
+export type SqlParam = string | number | boolean | Date | null | undefined;
+
 export interface JwtPayload {
   sub: string;
   email: string;

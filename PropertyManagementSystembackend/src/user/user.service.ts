@@ -15,6 +15,25 @@ import {
   USER_CHECK_EXISTING_QUERY
 } from './user.queries';
 
+export interface IRawUser {
+  id: string;
+  user_code: string;
+  name: string;
+  email: string;
+  phone: string;
+  password_hash?: string;
+  role: string;
+  failed_login_attempts: number;
+  is_locked: number | boolean;
+  status: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface IUserCheckResult {
+  id: string;
+}
+
 export interface IUser {
   id: string;
   userCode: string;
@@ -30,6 +49,8 @@ export interface IUser {
   updatedAt: Date;
 }
 
+import { SqlParam } from '../common/types';
+
 @Injectable()
 export class UserService {
   private readonly logger = new Logger(UserService.name);
@@ -42,22 +63,22 @@ export class UserService {
   /**
    * Helper to map raw DB results to User entity shape
    */
-  private mapUser(raw: Record<string, unknown>, isSensitiveRequest = false): IUser | null {
+  private mapUser(raw: IRawUser | null, isSensitiveRequest = false): IUser | null {
     if (!raw) return null;
 
     const user: IUser = {
-      id: raw.id as string,
-      userCode: raw.user_code as string,
-      name: raw.name as string,
-      email: raw.email as string,
-      phone: raw.phone as string,
-      passwordHash: raw.password_hash as string,
-      role: raw.role as string,
-      failedLoginAttempts: raw.failed_login_attempts as number,
+      id: raw.id,
+      userCode: raw.user_code,
+      name: raw.name,
+      email: raw.email,
+      phone: raw.phone,
+      passwordHash: raw.password_hash,
+      role: raw.role,
+      failedLoginAttempts: raw.failed_login_attempts,
       isLocked: Boolean(raw.is_locked),
-      status: raw.status as number,
-      createdAt: raw.created_at as Date,
-      updatedAt: raw.updated_at as Date,
+      status: raw.status,
+      createdAt: raw.created_at,
+      updatedAt: raw.updated_at,
     };
 
     if (!isSensitiveRequest) {
@@ -71,8 +92,7 @@ export class UserService {
     const { email, phone, password, role, name } = createUserDto;
 
     return this.db.transaction(async (conn) => {
-      // Use execute for transactional queries
-      const existing = await this.db.execute(conn, USER_CHECK_EXISTING_QUERY, [email, phone]) as unknown[];
+      const existing = await this.db.execute(conn, USER_CHECK_EXISTING_QUERY, [email, phone]) as IUserCheckResult[];
 
       if (existing.length > 0) {
         throw new BadRequestException('User with this email or phone already exists');
@@ -92,12 +112,12 @@ export class UserService {
         phone,
         passwordHash,
         role,
-        0, // failed_login_attempts
-        0, // is_locked
+        0,
+        0,
         STATUS.ACTIVE
       ]);
 
-      const [newUser] = await this.db.execute(conn, USER_FIND_BY_ID_QUERY, [id]) as Record<string, unknown>[];
+      const [newUser] = await this.db.execute(conn, USER_FIND_BY_ID_QUERY, [id]) as IRawUser[];
       return this.mapUser(newUser);
     });
   }
@@ -106,7 +126,7 @@ export class UserService {
     const rows = await this.db.query(
       USER_FIND_ALL_ACTIVE_QUERY,
       [STATUS.ACTIVE]
-    ) as Record<string, unknown>[];
+    ) as IRawUser[];
     return rows.map((row) => this.mapUser(row)).filter((u): u is IUser => u !== null);
   }
 
@@ -114,7 +134,7 @@ export class UserService {
     const [row] = await this.db.query(
       USER_FIND_BY_ID_QUERY,
       [id]
-    ) as Record<string, unknown>[];
+    ) as IRawUser[];
 
     if (!row) {
       throw new NotFoundException(`User with ID ${id} not found`);
@@ -124,13 +144,13 @@ export class UserService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<IUser | null> {
-    const [existing] = await this.db.query(USER_FIND_BY_ID_QUERY, [id]) as Record<string, unknown>[];
+    const [existing] = await this.db.query(USER_FIND_BY_ID_QUERY, [id]) as IRawUser[];
     if (!existing) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
     const updates: string[] = [];
-    const params: unknown[] = [];
+    const params: SqlParam[] = [];
 
     const colMap: Record<string, string> = {
       userCode: 'user_code',
@@ -139,12 +159,12 @@ export class UserService {
       isLocked: 'is_locked'
     };
 
-    Object.keys(updateUserDto).forEach(key => {
-      const val = (updateUserDto as any)[key];
+    (Object.keys(updateUserDto) as Array<keyof UpdateUserDto>).forEach(key => {
+      const val = updateUserDto[key];
       if (val !== undefined) {
-        const col = colMap[key] || key;
+        const col = colMap[key as string] || (key as string);
         updates.push(`${col} = ?`);
-        params.push(key === 'isLocked' ? (val ? 1 : 0) : val);
+        params.push(val);
       }
     });
 
@@ -156,12 +176,12 @@ export class UserService {
       );
     }
 
-    const [updated] = await this.db.query(USER_FIND_BY_ID_QUERY, [id]) as Record<string, unknown>[];
+    const [updated] = await this.db.query(USER_FIND_BY_ID_QUERY, [id]) as IRawUser[];
     return this.mapUser(updated);
   }
 
   async remove(id: string): Promise<void> {
-    const [existing] = await this.db.query(USER_FIND_BY_ID_QUERY, [id]) as unknown[];
+    const [existing] = await this.db.query(USER_FIND_BY_ID_QUERY, [id]) as Pick<IRawUser, 'id'>[];
     if (!existing) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
@@ -173,7 +193,7 @@ export class UserService {
   }
 
   async unlock(id: string): Promise<void> {
-    const [existing] = await this.db.query(USER_FIND_BY_ID_QUERY, [id]) as unknown[];
+    const [existing] = await this.db.query(USER_FIND_BY_ID_QUERY, [id]) as Pick<IRawUser, 'id'>[];
     if (!existing) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }

@@ -20,11 +20,11 @@ export class AuthMiddleware implements NestMiddleware {
     private readonly authService: AuthService,
   ) { }
 
-  async use(req: Request & { user?: any; isPublic?: boolean }, res: Response, next: NextFunction) {
+  async use(req: Request & { isPublic?: boolean }, res: Response, next: NextFunction) {
 
     const authHeader = req.headers.authorization;
 
-    if (req.isPublic && !authHeader) {
+    if (req['isPublic'] && !authHeader) {
       return next();
     }
 
@@ -43,10 +43,8 @@ export class AuthMiddleware implements NestMiddleware {
         throw new UnauthorizedException('Token has been revoked. please login.');
       }
 
-      // Step 3: Fetch fresh user from DB (Production Pattern)
       const user = await this.authService.findUserById(payload.sub);
 
-      // Step 4: Validate user exists and is active/unlocked
       if (!user) {
         throw new UnauthorizedException('User account no longer exists.');
       }
@@ -55,16 +53,15 @@ export class AuthMiddleware implements NestMiddleware {
         throw new UnauthorizedException('Account is locked. Please contact support.');
       }
 
-      // Populate req.user with DB-fresh data instead of token data
       const authenticatedReq = req as AuthenticatedRequest;
       authenticatedReq.user = {
         id: user.id,
         email: user.email,
-        role: user.role, // Always use DB-fresh role
+        role: user.role
       };
-      authenticatedReq.jti = payload.jti;
+      // authenticatedReq.jti = payload.jti;
       next();
-    } catch (error: unknown) {
+    } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Authentication failed: ${message}`);
       throw new UnauthorizedException(`Invalid or expired token: ${message}`);

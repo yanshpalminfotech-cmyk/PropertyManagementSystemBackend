@@ -26,7 +26,8 @@ export const VISIT_REQUEST_GET_LATEST_CODE_QUERY = `
 `;
 
 export const PROPERTY_CHECK_ACTIVE_QUERY = `
-  SELECT id FROM properties WHERE id = ? AND status = ?
+  SELECT id FROM properties 
+  WHERE id = ? AND status = ? AND propertiesstatus = ? AND available_for_visit = 1
 `;
 
 export const SITE_SLOT_SYNC_STATUS_QUERY = `
@@ -46,4 +47,16 @@ export const VISIT_REQUEST_FIND_ALL_BASE_QUERY = `
   JOIN properties p ON vr.property_id = p.id
   JOIN site_slots ss ON vr.slot_id = ss.id
   WHERE vr.status = ?
+`;
+
+export const VISIT_REQUEST_CHECK_EXISTING_ACTIVE_QUERY = `
+  SELECT vr.id, vr.visit_code, vr.visit_request_status 
+  FROM visit_requests vr
+  JOIN site_slots ss ON vr.slot_id = ss.id
+  WHERE vr.customer_id = ? 
+    AND vr.property_id = ?
+    AND vr.status = ? 
+    AND vr.visit_request_status IN (?, ?)
+    AND (ss.visit_date > CURRENT_DATE OR (ss.visit_date = CURRENT_DATE AND ss.start_time > CURRENT_TIME))
+  LIMIT 1
 `;

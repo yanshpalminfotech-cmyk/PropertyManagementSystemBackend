@@ -5,6 +5,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../user/entities/user.entity';
 import { LockSlotDto } from './dto/lock-slot.dto';
+import type { AuthenticatedRequest } from '../common/types';
 
 @ApiTags('Site Slots')
 @Controller('site-slots')
@@ -40,7 +41,7 @@ export class SiteSlotsController {
   @ApiResponse({ status: 409, description: 'Slot already locked or booked' })
   async lockSlot(
     @Body() dto: LockSlotDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     const slot = await this.siteSlotsService.lockSlot(dto, req.user.id);
 

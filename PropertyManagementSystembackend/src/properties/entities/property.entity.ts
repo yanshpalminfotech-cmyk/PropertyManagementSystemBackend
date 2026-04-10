@@ -169,6 +169,9 @@ export class Property {
 
   @Column({ name: 'posted_date', type: 'date', nullable: true })
   postedDate?: Date;
+  
+  @Column({ name: 'status_change_date', type: 'datetime', nullable: true })
+  statusChangeDate?: Date;
 
   @Index()
   @Column({
