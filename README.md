@@ -1,8 +1,8 @@
-# 🏠 Property Management System (PMS)
+# Property Management System (PMS)
 
 A robust, full-stack enterprise solution for managing real estate properties, scheduling site visits, and facilitating communication between Brokers, Customers, and Administrators.
 
-## 🚀 Overview
+## Overview
 
 This project is built with security, scalability, and performance in mind. It uses a modern tech stack featuring a high-performance **NestJS** backend (decoupled from traditional ORMs for raw SQL performance) and a sleek, interactive **React** frontend powered by **Ant Design**.
 
@@ -24,7 +24,7 @@ This project is built with security, scalability, and performance in mind. It us
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 ### Backend
 - **Framework**: [NestJS](https://nestjs.com/) (Node.js)
@@ -43,7 +43,7 @@ This project is built with security, scalability, and performance in mind. It us
 
 ---
 
-## 🏗 Project Structure
+## Project Structure
 
 ```bash
 .
@@ -65,7 +65,7 @@ This project is built with security, scalability, and performance in mind. It us
 
 ---
 
-## ⚙️ Setup & Installation
+## Setup & Installation
 
 ### Prerequisites
 - Node.js (v18+)
@@ -93,7 +93,7 @@ npm run dev
 
 ---
 
-## 🔐 Environment Variables
+## Environment Variables
 
 ### Backend (`.env`)
 ```env
@@ -116,7 +116,7 @@ VITE_API_BASE_URL=http://localhost:3000/v1
 
 ---
 
-## 📜 Standards & Architecture
+## Standards & Architecture
 
 - **Raw SQL Philosophy**: To ensure maximum performance and total control over execution plans, this project avoids heavy ORMs. All queries are handled via a centralized `DatabaseService` using parameterized SQL.
 - **Type Safety**: The project enforces **TypeScript Strict Mode**. All `any` types have been removed in favor of strict interfaces for DTOs, Query Results, and UI Props.
@@ -124,7 +124,7 @@ VITE_API_BASE_URL=http://localhost:3000/v1
 
 ---
 
-## 🤝 Contribution
+## Contribution
 1. Branch from `main`.
 2. Ensure all changes are strictly typed.
 3. Run `npm run lint` and `npm run build` before submitting PRs.

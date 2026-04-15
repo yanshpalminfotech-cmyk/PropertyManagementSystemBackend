@@ -1,8 +1,8 @@
-# 🎨 Property Management System - Frontend
+# Property Management System - Frontend
 
 A high-performance, interactive dashboard built with **Vite**, **React**, and **Ant Design**.
 
-## 🚀 Key Technologies
+## Key Technologies
 - **Vite**: Ultra-fast build tool and dev server.
 - **Ant Design (antd)**: Enterprise-class UI design system.
 - **TanStack React Query**: Powerful data fetching, caching, and synchronization for server state.
@@ -11,7 +11,7 @@ A high-performance, interactive dashboard built with **Vite**, **React**, and **
 
 ---
 
-## 🏗 Component Architecture
+## Component Architecture
 - **AppLayout**: The main shell featuring a responsive sidebar, header, and dynamic navigation based on user roles.
 - **Dashboard**: A data-driven centerpiece showcasing system stats via responsive cards and interactive charts.
 - **Property Module**:
@@ -23,7 +23,7 @@ A high-performance, interactive dashboard built with **Vite**, **React**, and **
 
 ---
 
-## 🚦 Getting Started
+## Getting Started
 
 ### 1. Installation
 ```bash
@@ -48,7 +48,7 @@ npm run build
 
 ---
 
-## 🧪 Best Practices
+## Best Practices
 - **Strict Typing**: The frontend uses `Breakpoint[]` for Ant Design responsive features and strictly typed DTOs for all API calls.
 - **API Interceptors**: Integrated logic to handle `401 Unauthorized` errors by automatically attempting a token refresh without interrupting the user's flow.
 - **Responsive Design**: All tables and cards are optimized for mobile, tablet, and desktop viewports.

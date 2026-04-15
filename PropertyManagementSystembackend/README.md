@@ -1,8 +1,8 @@
-# 🏗 Property Management System - Backend
+# Property Management System - Backend
 
 The core API service for the Property Management System, built with **NestJS** and **MySQL**.
 
-## 🚀 Architectural Choice: Raw SQL
+## Architectural Choice: Raw SQL
 To maintain peak performance and fine-grained control over complex reporting queries (like site visit conversions and system-wide stats), this project intentionally avoids a heavy ORM. Instead, it uses a custom `DatabaseService` to manage connection pools and execute parameterized raw SQL queries.
 
 ### Key Benefits:
@@ -12,7 +12,7 @@ To maintain peak performance and fine-grained control over complex reporting que
 
 ---
 
-## 🔐 Security Features
+## Security Features
 - **JWT Rotation**: Implements a secure Access/Refresh token pattern.
 - **Brute-Force Lockout**: Automatically locks user accounts after 5 failed login attempts within a window.
 - **Input Validation**: Global `ValidationPipe` with strict whitelisting to prevent payload injection.
@@ -20,7 +20,7 @@ To maintain peak performance and fine-grained control over complex reporting que
 
 ---
 
-## 🛠 Project Structure
+## Project Structure
 
 - `src/auth`: Authentication controllers, JWT strategies, and guarding logic.
 - `src/common`: Core utilities, including the `DatabaseService` and shared types.
@@ -31,7 +31,7 @@ To maintain peak performance and fine-grained control over complex reporting que
 
 ---
 
-## 🚦 Getting Started
+## Getting Started
 
 ### 1. Installation
 ```bash
@@ -63,6 +63,6 @@ npm run build
 npm run start:prod
 ```
 
-## 📖 API Documentation
+## API Documentation
 Once the server is running, you can access the interactive **Swagger** documentation at:
 `http://localhost:3000/api` (or your configured port).
