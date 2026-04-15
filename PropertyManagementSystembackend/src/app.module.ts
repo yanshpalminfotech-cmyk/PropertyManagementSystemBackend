@@ -23,6 +23,7 @@ import { AuthMiddleware } from './auth/middleware/auth.middleware';
 import { PublicRouteMiddleware } from './auth/middleware/public.middleware';
 import { DatabaseModule } from './common/database/database.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     VisitRequestsModule,
     VisitFeedbackModule,
     DashboardModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [

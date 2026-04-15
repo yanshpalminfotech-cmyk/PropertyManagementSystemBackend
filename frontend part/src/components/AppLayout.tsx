@@ -8,6 +8,7 @@ import {
   UserOutlined,
   MessageOutlined,
   SolutionOutlined,
+  LineChartOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -71,6 +72,11 @@ const AppLayout: React.FC = () => {
       key: '/brokers',
       icon: <SolutionOutlined />,
       label: 'Brokers',
+    });
+    menuItems.push({
+      key: '/reports',
+      icon: <LineChartOutlined />,
+      label: 'System Reports',
     });
   }
 

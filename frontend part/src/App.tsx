@@ -15,6 +15,7 @@ import VisitManagement from "./pages/visits/VisitManagement";
 import FeedbackPage from "./pages/visits/FeedbackPage";
 import CustomerManagement from "./pages/admin/CustomerManagement";
 import BrokerManagement from "./pages/admin/BrokerManagement";
+import ReportsPage from "./pages/admin/Reports";
 
 
 const queryClient = new QueryClient({
@@ -98,6 +99,14 @@ const App = () => (
             element={
               <RoleRoute role={UserRole.ADMIN}>
                 <BrokerManagement />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <RoleRoute role={UserRole.ADMIN}>
+                <ReportsPage />
               </RoleRoute>
             }
           />
