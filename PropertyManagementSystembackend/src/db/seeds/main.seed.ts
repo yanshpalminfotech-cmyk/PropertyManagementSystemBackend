@@ -36,7 +36,8 @@ async function bootstrap() {
     ];
 
     for (const u of users) {
-      const [existing] = await db.query('SELECT id FROM users WHERE email = ?', [u.email]) as any[];
+      const existingRows = await db.query<{ id: string }[]>('SELECT id FROM users WHERE email = ?', [u.email]);
+      const existing = existingRows[0];
       if (!existing) {
         await db.query(
           `INSERT INTO users (id, user_code, name, email, phone, password_hash, role, failed_login_attempts, is_locked, status) 
@@ -65,7 +66,7 @@ async function bootstrap() {
       { type: PropertyType.COMMERCIAL, cat: PropertyCategory.SHOP, loc: PropertyLocation.ADAJAN, trans: TransactionType.SALE, price: 12000000, status: PropertyAvailabilityStatus.AVAILABLE },
       { type: PropertyType.RESIDENTIAL, cat: PropertyCategory.BHK1, loc: PropertyLocation.ADAJAN, trans: TransactionType.SALE, price: 3500000, status: PropertyAvailabilityStatus.AVAILABLE },
       { type: PropertyType.RESIDENTIAL, cat: PropertyCategory.VILLA, loc: PropertyLocation.VESU, trans: TransactionType.SALE, price: 18000000, status: PropertyAvailabilityStatus.AVAILABLE },
-      { type: PropertyType.RESIDENTIAL, cat: PropertyCategory.BHK3 as any || PropertyCategory.VILLA, loc: PropertyLocation.CITYLIGHT, trans: TransactionType.SALE, price: 15000000, status: PropertyAvailabilityStatus.AVAILABLE },
+      { type: PropertyType.RESIDENTIAL, cat: PropertyCategory.BHK3, loc: PropertyLocation.CITYLIGHT, trans: TransactionType.SALE, price: 15000000, status: PropertyAvailabilityStatus.AVAILABLE },
       { type: PropertyType.RESIDENTIAL, cat: PropertyCategory.BHK2, loc: PropertyLocation.CITYLIGHT, trans: TransactionType.RENT, price: 22000, status: PropertyAvailabilityStatus.AVAILABLE },
       { type: PropertyType.COMMERCIAL, cat: PropertyCategory.SHOP, loc: PropertyLocation.CITYLIGHT, trans: TransactionType.RENT, price: 35000, status: PropertyAvailabilityStatus.AVAILABLE },
       { type: PropertyType.RESIDENTIAL, cat: PropertyCategory.BHK3, loc: PropertyLocation.PIPLOD, trans: TransactionType.SALE, price: 11000000, status: PropertyAvailabilityStatus.AVAILABLE },
@@ -81,7 +82,8 @@ async function bootstrap() {
       const id = uuidv4();
       const code = `PROP-${2025}-${String(i + 1).padStart(3, '0')}`;
 
-      const [existing] = await db.query('SELECT id FROM properties WHERE property_code = ?', [code]) as any[];
+      const existingRows = await db.query<{ id: string }[]>('SELECT id FROM properties WHERE property_code = ?', [code]);
+      const existing = existingRows[0];
       if (!existing) {
         await db.query(
           `INSERT INTO properties (
@@ -123,7 +125,8 @@ async function bootstrap() {
 
       const statusValue = i < 10 ? SlotStatus.AVAILABLE : (i < 20 ? SlotStatus.BOOKED : SlotStatus.REQUESTED);
 
-      const [existing] = await db.query('SELECT id FROM site_slots WHERE property_id = ? AND visit_date = ? AND start_time = ?', [propId, date, startTime]) as any[];
+      const existingRows = await db.query<{ id: string }[]>('SELECT id FROM site_slots WHERE property_id = ? AND visit_date = ? AND start_time = ?', [propId, date, startTime]);
+      const existing = existingRows[0];
       if (!existing) {
         await db.query(
           `INSERT INTO site_slots (id, property_id, visit_date, start_time, end_time, slot_status, locked_by, locked_until, status) 
@@ -145,10 +148,12 @@ async function bootstrap() {
       const slotId = slotIds[i % slotIds.length];
 
       // Need propertyId for this slot
-      const [slot] = await db.query('SELECT property_id FROM site_slots WHERE id = ?', [slotId]) as any[];
+      const slotRows = await db.query<{ property_id: string }[]>('SELECT property_id FROM site_slots WHERE id = ?', [slotId]);
+      const slot = slotRows[0];
       if (!slot) continue;
 
-      const [existing] = await db.query('SELECT id FROM visit_requests WHERE visit_code = ?', [code]) as any[];
+      const existingRows = await db.query<{ id: string }[]>('SELECT id FROM visit_requests WHERE visit_code = ?', [code]);
+      const existing = existingRows[0];
       if (!existing) {
         await db.query(
           `INSERT INTO visit_requests (id, visit_code, property_id, customer_id, slot_id, visit_request_status, status) 

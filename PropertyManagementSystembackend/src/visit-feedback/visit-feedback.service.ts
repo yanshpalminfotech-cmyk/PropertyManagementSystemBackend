@@ -135,9 +135,9 @@ export class VisitFeedbackService {
     let rows: IRawVisitFeedbackDetail[];
 
     if (user.role === 'ADMIN') {
-      rows = await this.db.query(VISIT_FEEDBACK_FIND_ALL_QUERY) as IRawVisitFeedbackDetail[];
+      rows = await this.db.query<IRawVisitFeedbackDetail[]>(VISIT_FEEDBACK_FIND_ALL_QUERY);
     } else {
-      rows = await this.db.query(VISIT_FEEDBACK_FIND_BY_BROKER_QUERY, [user.id]) as IRawVisitFeedbackDetail[];
+      rows = await this.db.query<IRawVisitFeedbackDetail[]>(VISIT_FEEDBACK_FIND_BY_BROKER_QUERY, [user.id]);
     }
 
     return rows.map((r) => this.mapFeedbackDetail(r));
@@ -153,10 +153,10 @@ export class VisitFeedbackService {
     const brokerId = isAdmin ? null : user.id;
     const skipBrokerCheck = isAdmin ? 1 : 0;
 
-    const rows = await this.db.query(
+    const rows = await this.db.query<IRawVisitFeedbackDetail[]>(
       VISIT_FEEDBACK_FIND_BY_PROPERTY_QUERY,
       [propertyId, brokerId, skipBrokerCheck]
-    ) as IRawVisitFeedbackDetail[];
+    );
 
     return rows.map((r) => this.mapFeedbackDetail(r));
   }
@@ -169,7 +169,8 @@ export class VisitFeedbackService {
     const { interestLevel, feedback } = dto;
 
     // 1. Verify the visit exists and is active
-    const [visit] = await this.db.query(VISIT_REQUEST_MINIMAL_FOR_FEEDBACK_QUERY, [visitRequestId]) as IRawVisitMinimal[];
+    const visits = await this.db.query<IRawVisitMinimal[]>(VISIT_REQUEST_MINIMAL_FOR_FEEDBACK_QUERY, [visitRequestId]);
+    const visit = visits[0];
 
     if (!visit) {
       throw new NotFoundException('Visit request not found');
@@ -186,7 +187,8 @@ export class VisitFeedbackService {
     }
 
     // 4. One-time feedback rule — reject if already submitted
-    const [existing] = await this.db.query(VISIT_FEEDBACK_FIND_BY_VISIT_ID_QUERY, [visitRequestId]) as IRawVisitFeedback[];
+    const existingRows = await this.db.query<IRawVisitFeedback[]>(VISIT_FEEDBACK_FIND_BY_VISIT_ID_QUERY, [visitRequestId]);
+    const existing = existingRows[0];
 
     if (existing) {
       this.logger.warn(`Customer ${user.id} attempted to re-submit feedback for visit ${visitRequestId}`);
@@ -196,7 +198,8 @@ export class VisitFeedbackService {
     // 5. Insert new feedback record
     const id = uuidv4();
     await this.db.query(VISIT_FEEDBACK_INSERT_QUERY, [id, visitRequestId, interestLevel, feedback]);
-    const [inserted] = await this.db.query(VISIT_FEEDBACK_FIND_BY_ID_QUERY, [id]) as IRawVisitFeedback[];
+    const insertedRows = await this.db.query<IRawVisitFeedback[]>(VISIT_FEEDBACK_FIND_BY_ID_QUERY, [id]);
+    const inserted = insertedRows[0];
 
     this.logger.log(`Feedback ${id} submitted by customer ${user.id} for visit ${visitRequestId}`);
     return this.mapFeedback(inserted);

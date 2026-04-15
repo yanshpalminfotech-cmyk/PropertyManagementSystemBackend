@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Table, Tag, Button, Space, Typography, Modal, Form, Input, message, Popconfirm, Tooltip, Switch } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getUsers, updateUser, deleteUser, type User } from '@/api/users';
+import { getUsers, updateUser, deleteUser, type User, type UpdateUserDto } from '@/api/users';
+import type { AxiosError } from 'axios';
 import { formatDate } from '@/utils/formatDate';
 import { KeyOutlined, DeleteOutlined, SolutionOutlined } from '@ant-design/icons';
 
@@ -19,14 +21,14 @@ const BrokerManagement: React.FC = () => {
     });
 
     const updateMutation = useMutation({
-        mutationFn: ({ id, data }: { id: string; data: any }) => updateUser(id, data),
+        mutationFn: ({ id, data }: { id: string; data: UpdateUserDto }) => updateUser(id, data),
         onSuccess: () => {
             message.success('Broker updated successfully');
             queryClient.invalidateQueries({ queryKey: ['users', 'BROKER'] });
             setIsPasswordModalOpen(false);
             form.resetFields();
         },
-        onError: (error: any) => {
+        onError: (error: AxiosError<{ message: string }>) => {
             message.error(error.response?.data?.message || 'Failed to update broker');
         },
     });
@@ -37,7 +39,7 @@ const BrokerManagement: React.FC = () => {
             message.success('Broker deleted successfully');
             queryClient.invalidateQueries({ queryKey: ['users', 'BROKER'] });
         },
-        onError: (error: any) => {
+        onError: (error: AxiosError<{ message: string }>) => {
             message.error(error.response?.data?.message || 'Failed to delete broker');
         },
     });
@@ -47,8 +49,8 @@ const BrokerManagement: React.FC = () => {
         updateMutation.mutate({ id: user.id, data: { status: newStatus } });
     };
 
-    const handlePasswordReset = (values: any) => {
-        if (selectedUser) {
+    const handlePasswordReset = (values: { password?: string }) => {
+        if (selectedUser && values.password) {
             updateMutation.mutate({ id: selectedUser.id, data: { password: values.password } });
         }
     };
@@ -58,7 +60,7 @@ const BrokerManagement: React.FC = () => {
         setIsPasswordModalOpen(true);
     };
 
-    const columns = [
+    const columns: ColumnsType<User> = [
         {
             title: 'Name',
             dataIndex: 'name',
@@ -113,7 +115,7 @@ const BrokerManagement: React.FC = () => {
         {
             title: 'Actions',
             key: 'actions',
-            render: (_: any, record: User) => (
+            render: (_: unknown, record: User) => (
                 <Space size="middle">
                     <Tooltip title="Reset Password">
                         <Button 

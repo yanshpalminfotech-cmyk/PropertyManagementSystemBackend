@@ -13,6 +13,7 @@ import { formatArea } from '../../utils/formatArea';
 import type { PropertyQueryParams } from '../../types/Property';
 import type { ColumnsType } from 'antd/es/table';
 import type { Property } from '../../types/Property';
+import type { Breakpoint } from 'antd';
 
 const { Option } = Select;
 
@@ -67,11 +68,11 @@ const PropertyList: React.FC = () => {
             { title: 'Transaction', dataIndex: 'transactionType', key: 'transactionType' },
             { title: 'Location', dataIndex: 'location', key: 'location', ellipsis: true },
             { title: 'Price', dataIndex: 'price', key: 'price', render: (v: number) => formatCurrency(v) },
-            { title: 'Carpet Area', dataIndex: 'carpetArea', key: 'carpetArea', responsive: ['md'] as any, render: (v: number) => formatArea(v) },
+            { title: 'Carpet Area', dataIndex: 'carpetArea', key: 'carpetArea', responsive: ['md'] as Breakpoint[], render: (v: number) => formatArea(v) },
             { title: 'Status', dataIndex: 'propertiesstatus', key: 'propertiesstatus', render: (status: PropertyStatus) => (
                 <Tag color={statusColor[status] || 'default'}>{status?.replace('_', ' ')}</Tag>
             )},
-            { title: 'Posted', dataIndex: 'postedDate', key: 'postedDate', responsive: ['lg'] as any, render: (v: string) => v ? formatDate(v) : '-' },
+            { title: 'Posted', dataIndex: 'postedDate', key: 'postedDate', responsive: ['lg'] as Breakpoint[], render: (v: string) => v ? formatDate(v) : '-' },
         ];
 
 

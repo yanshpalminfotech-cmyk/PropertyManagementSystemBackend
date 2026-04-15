@@ -24,7 +24,13 @@ apiClient.interceptors.request.use(
 import Cookies from 'js-cookie';
 
 let isRefreshing = false;
-let failedQueue: any[] = [];
+
+interface FailedRequest {
+    resolve: (token: string | null) => void;
+    reject: (error: AxiosError) => void;
+}
+
+let failedQueue: FailedRequest[] = [];
 
 const processQueue = (error: AxiosError | null, token: string | null = null) => {
     failedQueue.forEach((prom) => {
@@ -51,18 +57,22 @@ apiClient.interceptors.response.use(
         return response;
     },
     async (error: AxiosError) => {
-        const originalRequest: any = error.config;
+        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+        if (!originalRequest) return Promise.reject(error);
 
         // Skip refresh logic for login and register requests
         const isAuthRequest = originalRequest.url?.includes('/auth/login') || originalRequest.url?.includes('/auth/register');
 
         if (error.response?.status === 401 && !originalRequest._retry && !isAuthRequest) {
             if (isRefreshing) {
-                return new Promise((resolve, reject) => {
+                return new Promise<string | null>((resolve, reject) => {
                     failedQueue.push({ resolve, reject });
                 })
                     .then((token) => {
-                        originalRequest.headers.Authorization = `Bearer ${token}`;
+                        if (originalRequest.headers) {
+                            originalRequest.headers.Authorization = `Bearer ${token}`;
+                        }
                         return apiClient(originalRequest);
                     })
                     .catch((err) => Promise.reject(err));
@@ -83,13 +93,11 @@ apiClient.interceptors.response.use(
 
             try {
                 // Use a separate axios instance to avoid interceptor recursion
-                const response = await axios.post(`${apiClient.defaults.baseURL}/auth/refresh`, {
-                    refreshToken,
-                });
+                const response = await axios.post<{ data: { accessToken: string; refreshToken: string } }>(
+                    `${apiClient.defaults.baseURL}/auth/refresh`, 
+                    { refreshToken }
+                );
 
-                // The response is already unrolled by our interceptor logic... 
-                // WAIT, no, we used 'axios.post' instead of 'apiClient.post' to avoid recursion.
-                // So we need to manually unroll it.
                 const { accessToken, refreshToken: newRefreshToken } = response.data.data;
 
                 setToken(accessToken);
@@ -98,7 +106,9 @@ apiClient.interceptors.response.use(
                 processQueue(null, accessToken);
                 isRefreshing = false;
 
-                originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+                if (originalRequest.headers) {
+                    originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+                }
                 return apiClient(originalRequest);
             } catch (refreshError) {
                 processQueue(refreshError as AxiosError, null);

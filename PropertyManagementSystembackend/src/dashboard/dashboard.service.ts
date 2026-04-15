@@ -28,7 +28,8 @@ export class DashboardService {
 
   async getStats(user: UserInfo): Promise<IDashboardStats> {
     // Return global stats for all roles as requested
-    const [row] = await this.db.query(DASHBOARD_STATS_QUERY) as any[];
+    const rows = await this.db.query<IDashboardStats[]>(DASHBOARD_STATS_QUERY);
+    const row = rows[0];
     
     return {
       totalProperties: Number(row?.totalProperties || 0),

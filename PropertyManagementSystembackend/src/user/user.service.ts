@@ -95,7 +95,7 @@ export class UserService {
     const { email, phone, password, role, name } = createUserDto;
 
     return this.db.transaction(async (conn) => {
-      const existing = await this.db.execute(conn, USER_CHECK_EXISTING_QUERY, [email, phone]) as IUserCheckResult[];
+      const existing = await this.db.execute<IUserCheckResult[]>(conn, USER_CHECK_EXISTING_QUERY, [email, phone]);
 
       if (existing.length > 0) {
         throw new BadRequestException('User with this email or phone already exists');
@@ -120,8 +120,8 @@ export class UserService {
         STATUS.ACTIVE
       ]);
 
-      const [newUser] = await this.db.execute(conn, USER_FIND_BY_ID_QUERY, [id]) as IRawUser[];
-      return this.mapUser(newUser);
+      const newUserRows = await this.db.execute<IRawUser[]>(conn, USER_FIND_BY_ID_QUERY, [id]);
+      return this.mapUser(newUserRows[0]);
     });
   }
 
@@ -129,25 +129,26 @@ export class UserService {
     let rows: IRawUser[];
 
     if (role) {
-      rows = await this.db.query(
+      rows = await this.db.query<IRawUser[]>(
         USER_FIND_BY_ROLE_QUERY,
         [role, STATUS.DELETED]
-      ) as IRawUser[];
+      );
     } else {
-      rows = await this.db.query(
+      rows = await this.db.query<IRawUser[]>(
         USER_FIND_ALL_QUERY,
         [STATUS.DELETED]
-      ) as IRawUser[];
+      );
     }
 
     return rows.map((row) => this.mapUser(row)).filter((u): u is IUser => u !== null);
   }
 
   async findOne(id: string): Promise<IUser | null> {
-    const [row] = await this.db.query(
+    const rows = await this.db.query<IRawUser[]>(
       USER_FIND_BY_ID_QUERY,
       [id]
-    ) as IRawUser[];
+    );
+    const row = rows[0];
 
     if (!row) {
       throw new NotFoundException(`User with ID ${id} not found`);
@@ -157,7 +158,8 @@ export class UserService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<IUser | null> {
-    const [existing] = await this.db.query(USER_FIND_BY_ID_QUERY, [id]) as IRawUser[];
+    const existingRows = await this.db.query<IRawUser[]>(USER_FIND_BY_ID_QUERY, [id]);
+    const existing = existingRows[0];
     if (!existing) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
@@ -172,17 +174,20 @@ export class UserService {
       isLocked: 'is_locked',
     };
 
+    // Use a temporary record to safely build the update payload
+    const dataToUpdate: Record<string, any> = { ...updateUserDto };
+
     // If password is provided, hash it first
     if (updateUserDto.password) {
       const salt = await bcrypt.genSalt();
-      (updateUserDto as any).passwordHash = await bcrypt.hash(updateUserDto.password, salt);
-      delete updateUserDto.password;
+      dataToUpdate.password_hash = await bcrypt.hash(updateUserDto.password, salt);
+      delete dataToUpdate.password;
     }
 
-    (Object.keys(updateUserDto) as Array<keyof UpdateUserDto>).forEach((key) => {
-      const val = updateUserDto[key];
+    (Object.keys(dataToUpdate)).forEach((key) => {
+      const val = dataToUpdate[key];
       if (val !== undefined) {
-        const col = colMap[key as string] || (key as string);
+        const col = colMap[key] || key;
         updates.push(`${col} = ?`);
         params.push(val as SqlParam);
       }
@@ -196,12 +201,13 @@ export class UserService {
       );
     }
 
-    const [updated] = await this.db.query(USER_FIND_BY_ID_QUERY, [id]) as IRawUser[];
-    return this.mapUser(updated);
+    const updatedRows = await this.db.query<IRawUser[]>(USER_FIND_BY_ID_QUERY, [id]);
+    return this.mapUser(updatedRows[0]);
   }
 
   async remove(id: string): Promise<void> {
-    const [existing] = await this.db.query(USER_FIND_BY_ID_QUERY, [id]) as Pick<IRawUser, 'id'>[];
+    const rows = await this.db.query<Pick<IRawUser, 'id'>[]>(USER_FIND_BY_ID_QUERY, [id]);
+    const existing = rows[0];
     if (!existing) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }

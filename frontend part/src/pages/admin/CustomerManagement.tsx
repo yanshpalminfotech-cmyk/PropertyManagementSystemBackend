@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Table, Tag, Button, Space, Typography, Modal, Form, Input, message, Popconfirm, Tooltip, Switch } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getUsers, updateUser, deleteUser, type User } from '@/api/users';
+import { getUsers, updateUser, deleteUser, type User, type UpdateUserDto } from '@/api/users';
 import { UserRole } from '@/types/enums';
 import { formatDate } from '@/utils/formatDate';
 import { KeyOutlined, DeleteOutlined, UserOutlined } from '@ant-design/icons';
+import type { AxiosError } from 'axios';
 
 const { Title } = Typography;
 
@@ -20,14 +22,14 @@ const CustomerManagement: React.FC = () => {
     });
 
     const updateMutation = useMutation({
-        mutationFn: ({ id, data }: { id: string; data: any }) => updateUser(id, data),
+        mutationFn: ({ id, data }: { id: string; data: UpdateUserDto }) => updateUser(id, data),
         onSuccess: () => {
             message.success('User updated successfully');
             queryClient.invalidateQueries({ queryKey: ['users', 'CUSTOMER'] });
             setIsPasswordModalOpen(false);
             form.resetFields();
         },
-        onError: (error: any) => {
+        onError: (error: AxiosError<{ message: string }>) => {
             message.error(error.response?.data?.message || 'Failed to update user');
         },
     });
@@ -38,7 +40,7 @@ const CustomerManagement: React.FC = () => {
             message.success('User deleted successfully');
             queryClient.invalidateQueries({ queryKey: ['users', 'CUSTOMER'] });
         },
-        onError: (error: any) => {
+        onError: (error: AxiosError<{ message: string }>) => {
             message.error(error.response?.data?.message || 'Failed to delete user');
         },
     });
@@ -48,8 +50,8 @@ const CustomerManagement: React.FC = () => {
         updateMutation.mutate({ id: user.id, data: { status: newStatus } });
     };
 
-    const handlePasswordReset = (values: any) => {
-        if (selectedUser) {
+    const handlePasswordReset = (values: { password?: string }) => {
+        if (selectedUser && values.password) {
             updateMutation.mutate({ id: selectedUser.id, data: { password: values.password } });
         }
     };
@@ -59,7 +61,7 @@ const CustomerManagement: React.FC = () => {
         setIsPasswordModalOpen(true);
     };
 
-    const columns = [
+    const columns: ColumnsType<User> = [
         {
             title: 'Name',
             dataIndex: 'name',
@@ -114,7 +116,7 @@ const CustomerManagement: React.FC = () => {
         {
             title: 'Actions',
             key: 'actions',
-            render: (_: any, record: User) => (
+            render: (_: unknown, record: User) => (
                 <Space size="middle">
                     <Tooltip title="Reset Password">
                         <Button
