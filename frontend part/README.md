@@ -1,73 +1,54 @@
-# React + TypeScript + Vite
+# 🎨 Property Management System - Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A high-performance, interactive dashboard built with **Vite**, **React**, and **Ant Design**.
 
-Currently, two official plugins are available:
+## 🚀 Key Technologies
+- **Vite**: Ultra-fast build tool and dev server.
+- **Ant Design (antd)**: Enterprise-class UI design system.
+- **TanStack React Query**: Powerful data fetching, caching, and synchronization for server state.
+- **Zustand**: Minimalistic but robust state management for client-side Auth state.
+- **Axios**: Configured with interceptors for automatic JWT attachment and token refresh rotation.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 🏗 Component Architecture
+- **AppLayout**: The main shell featuring a responsive sidebar, header, and dynamic navigation based on user roles.
+- **Dashboard**: A data-driven centerpiece showcasing system stats via responsive cards and interactive charts.
+- **Property Module**:
+  - `PropertyList`: Advanced table views with role-based columns and multi-parameter filtering.
+  - `PropertyDetail`: Comprehensive views for property information and visit scheduling.
+- **Admin Module**:
+  - `BrokerManagement`: Tools for managing brokers, resetting passwords, and toggling status.
+  - `CustomerManagement`: Oversight of customer accounts and activity.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 🚦 Getting Started
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 1. Installation
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 2. Configuration
+Create a `.env` file in the root:
+```env
+VITE_API_BASE_URL=http://localhost:3000/v1
 ```
+
+### 3. Development
+```bash
+npm run dev
+```
+
+### 4. Build for Production
+```bash
+npm run build
+```
+
+---
+
+## 🧪 Best Practices
+- **Strict Typing**: The frontend uses `Breakpoint[]` for Ant Design responsive features and strictly typed DTOs for all API calls.
+- **API Interceptors**: Integrated logic to handle `401 Unauthorized` errors by automatically attempting a token refresh without interrupting the user's flow.
+- **Responsive Design**: All tables and cards are optimized for mobile, tablet, and desktop viewports.
