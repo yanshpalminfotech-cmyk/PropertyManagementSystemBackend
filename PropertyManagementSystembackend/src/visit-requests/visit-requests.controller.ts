@@ -29,17 +29,11 @@ export class VisitRequestsController {
     @Body() dto: CreateVisitRequestDto,
     @Request() req: AuthenticatedRequest,
   ) {
-    const data = await this.visitRequestsService.create(dto, req.user);
-
-    return {
-      success: true,
-      data,
-      timestamp: new Date().toISOString(),
-    };
+    return this.visitRequestsService.create(dto, req.user);
   }
 
   @Patch(':id/confirm')
-  @Roles(UserRole.CUSTOMER, UserRole.BROKER)
+  @Roles(UserRole.CUSTOMER, UserRole.BROKER, UserRole.ADMIN)
   @UseGuards(RolesGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Confirm or Cancel a visit request' })
@@ -49,12 +43,11 @@ export class VisitRequestsController {
     @Body() dto: UpdateVisitStatusDto,
     @Request() req: AuthenticatedRequest,
   ) {
-    const data = await this.visitRequestsService.updateStatus(id, dto, req.user);
-    return { success: true, data, timestamp: new Date().toISOString() };
+    return this.visitRequestsService.updateStatus(id, dto, req.user);
   }
 
   @Patch(':id/complete')
-  @Roles(UserRole.BROKER)
+  @Roles(UserRole.BROKER, UserRole.ADMIN)
   @UseGuards(RolesGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark visit as completed' })
@@ -64,23 +57,17 @@ export class VisitRequestsController {
     @Body() dto: UpdateVisitStatusDto,
     @Request() req: AuthenticatedRequest,
   ) {
-    const data = await this.visitRequestsService.updateStatus(id, dto, req.user);
-    return { success: true, data, timestamp: new Date().toISOString() };
+    return this.visitRequestsService.updateStatus(id, dto, req.user);
   }
 
   @Get('my')
-  @Roles(UserRole.CUSTOMER, UserRole.BROKER)
+  @Roles(UserRole.CUSTOMER, UserRole.BROKER, UserRole.ADMIN)
   @UseGuards(RolesGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all visit requests for the current user (Customer or Broker)' })
   @ApiResponse({ status: HttpStatus.OK, description: 'List of visit requests retrieved successfully' })
   async findAllMy(@Request() req: AuthenticatedRequest) {
-    const data = await this.visitRequestsService.findAllMy(req.user);
-    return {
-      success: true,
-      data,
-      timestamp: new Date().toISOString(),
-    };
+    return this.visitRequestsService.findAllMy(req.user);
   }
 
   @Patch(':id/feedback')
@@ -94,11 +81,6 @@ export class VisitRequestsController {
     @Body() dto: CreateVisitFeedbackDto,
     @Request() req: AuthenticatedRequest,
   ) {
-    const data = await this.feedbackService.upsertFeedback(id, dto, req.user);
-    return {
-      success: true,
-      data,
-      timestamp: new Date().toISOString(),
-    };
+    return this.feedbackService.upsertFeedback(id, dto, req.user);
   }
 }

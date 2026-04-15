@@ -348,7 +348,11 @@ export class PropertiesService {
     (Object.keys(filters) as Array<keyof typeof filters>).forEach(key => {
       const val = filters[key];
       if (val) {
-        const colMap: Record<string, string> = { propertyType: 'property_type', transactionType: 'transaction_type' };
+        const colMap: Record<string, string> = { 
+          type: 'property_type',
+          propertyType: 'property_type', 
+          transactionType: 'transaction_type' 
+        };
         const colName = colMap[key as string] || (key as string);
         sql += ` AND p.${colName} = ?`;
         params.push(val as SqlParam);

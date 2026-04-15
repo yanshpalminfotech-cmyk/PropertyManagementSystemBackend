@@ -31,6 +31,7 @@ export enum UserRole {
 
 export interface IRawAuthUser {
   id: string;
+  name: string;
   email: string;
   role: string;
   password_hash: string;
@@ -57,6 +58,7 @@ export interface IIdResult {
 
 export interface IUser {
   id: string;
+  name: string;
   email: string;
   role: UserRole;
   passwordHash?: string;
@@ -87,6 +89,7 @@ export class AuthService {
     if (!raw) return null;
     const user: IUser = {
       id: raw.id,
+      name: raw.name,
       email: raw.email,
       role: raw.role as UserRole,
       passwordHash: raw.password_hash,

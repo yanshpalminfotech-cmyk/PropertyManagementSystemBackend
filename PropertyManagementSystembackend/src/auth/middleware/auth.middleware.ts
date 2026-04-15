@@ -56,8 +56,9 @@ export class AuthMiddleware implements NestMiddleware {
       const authenticatedReq = req as AuthenticatedRequest;
       authenticatedReq.user = {
         id: user.id,
+        name: user.name,
         email: user.email,
-        role: user.role
+        role: user.role,
       };
       // authenticatedReq.jti = payload.jti;
       next();

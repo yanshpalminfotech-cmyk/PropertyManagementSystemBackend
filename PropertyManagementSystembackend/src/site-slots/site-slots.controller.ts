@@ -23,13 +23,7 @@ export class SiteSlotsController {
     @Param('propertyId') propertyId: string,
     @Query('date') date: string,
   ) {
-    const data = await this.siteSlotsService.getAvailableSlots(propertyId, date);
-
-    return {
-      success: true,
-      data,
-      timestamp: new Date().toISOString(),
-    };
+    return this.siteSlotsService.getAvailableSlots(propertyId, date);
   }
 
   @Post('lock')
@@ -43,12 +37,6 @@ export class SiteSlotsController {
     @Body() dto: LockSlotDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    const slot = await this.siteSlotsService.lockSlot(dto, req.user.id);
-
-    return {
-      success: true,
-      data: slot,
-      timestamp: new Date().toISOString(),
-    };
+    return this.siteSlotsService.lockSlot(dto, req.user.id);
   }
 }

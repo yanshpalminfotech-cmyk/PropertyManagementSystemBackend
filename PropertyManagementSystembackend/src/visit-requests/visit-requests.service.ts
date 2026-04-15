@@ -46,6 +46,8 @@ export interface IRawVisitRequest {
   visit_date?: string;
   start_time?: string;
   end_time?: string;
+  customer_name?: string;
+  customer_email?: string;
   broker_id?: string;
 }
 
@@ -62,6 +64,8 @@ export interface IVisitRequest {
 }
 
 export interface IVisitRequestWithDetails extends IVisitRequest {
+  customerName?: string;
+  customerEmail?: string;
   property: {
     id: string;
     propertyCode: string;
@@ -226,6 +230,8 @@ export class VisitRequestsService {
 
       return {
         ...request,
+        ...(raw.customer_name && { customerName: raw.customer_name }),
+        ...(raw.customer_email && { customerEmail: raw.customer_email }),
         property: {
           id: raw.property_id,
           propertyCode: raw.property_code ?? 'N/A',

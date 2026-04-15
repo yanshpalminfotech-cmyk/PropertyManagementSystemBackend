@@ -42,10 +42,13 @@ export const VISIT_REQUEST_FIND_ALL_BASE_QUERY = `
     p.property_type,
     ss.visit_date, 
     ss.start_time, 
-    ss.end_time
+    ss.end_time,
+    u.name as customer_name,
+    u.email as customer_email
   FROM visit_requests vr
   JOIN properties p ON vr.property_id = p.id
   JOIN site_slots ss ON vr.slot_id = ss.id
+  JOIN users u ON vr.customer_id = u.id
   WHERE vr.status = ?
 `;
 
