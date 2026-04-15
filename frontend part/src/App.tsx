@@ -2,11 +2,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
-// import Dashboard from "./pages/Dashboard";
-// import PropertyList from "./pages/properties/PropertyList";
-// import PropertyForm from "./pages/properties/PropertyForm";
-// import PropertyDetail from "./pages/properties/PropertyDetail";
-// import MyVisits from "./pages/visits/MyVisits";
 import PrivateRoute from "./components/PrivateRoute";
 import RoleRoute from "./components/RoleRoute";
 import AppLayout from "./components/AppLayout";
@@ -17,6 +12,10 @@ import Dashboard from "./pages/Dashboard";
 import MyVisits from "./pages/visits/MyVisits";
 import PropertyDetail from "./pages/properties/PropertyDetail";
 import VisitManagement from "./pages/visits/VisitManagement";
+import FeedbackPage from "./pages/visits/FeedbackPage";
+import CustomerManagement from "./pages/admin/CustomerManagement";
+import BrokerManagement from "./pages/admin/BrokerManagement";
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -78,7 +77,33 @@ const App = () => (
               </RoleRoute>
             }
           />
+          <Route
+            path="/feedback"
+            element={
+              <RoleRoute role={[UserRole.ADMIN, UserRole.BROKER]}>
+                <FeedbackPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/customers"
+            element={
+              <RoleRoute role={UserRole.ADMIN}>
+                <CustomerManagement />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/brokers"
+            element={
+              <RoleRoute role={UserRole.ADMIN}>
+                <BrokerManagement />
+              </RoleRoute>
+            }
+          />
         </Route>
+
+
 
         {/* Redirects */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

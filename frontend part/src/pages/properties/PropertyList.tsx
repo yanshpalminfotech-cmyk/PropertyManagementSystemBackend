@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Table, Input, Select, InputNumber, Button, Tag, Spin, Result, Row, Col, Card } from 'antd';
+import { Table, Input, Select, InputNumber, Button, Tag, Spin, Result, Row, Col, Card, Typography } from 'antd';
 import { PlusOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -56,41 +56,41 @@ const PropertyList: React.FC = () => {
 
     const columns: ColumnsType<Property> = useMemo(() => {
         const cols: ColumnsType<Property> = [
-            { title: 'Property ID', dataIndex: 'propertyCode', key: 'propertyCode', width: 120, render: (v: string, r: Property) => v || r.id?.slice(0, 8) },
-            { title: 'Type', dataIndex: 'propertyType', key: 'propertyType', width: 110 },
-            { title: 'Category', dataIndex: 'category', key: 'category', width: 100 },
-            { title: 'Transaction', dataIndex: 'transactionType', key: 'transactionType', width: 110 },
-            { title: 'Location', dataIndex: 'location', key: 'location', width: 110 },
-            { title: 'Price', dataIndex: 'price', key: 'price', width: 130, render: (v: number) => formatCurrency(v) },
-            { title: 'Carpet Area', dataIndex: 'carpetArea', key: 'carpetArea', width: 120, render: (v: number) => formatArea(v) },
-            {
-                title: 'Status',
-                dataIndex: 'propertiesstatus',
-                key: 'propertiesstatus',
-                width: 140,
-                render: (status: PropertyStatus) => (
-                    <Tag color={statusColor[status] || 'default'}>{status?.replace('_', ' ')}</Tag>
-                ),
+            { 
+                title: 'ID', 
+                dataIndex: 'propertyCode', 
+                key: 'propertyCode', 
+                render: (v: string, r: Property) => <Typography.Text copyable={{ text: v }}>{v || r.id?.slice(0, 8)}</Typography.Text> 
             },
-            { title: 'Posted', dataIndex: 'postedDate', key: 'postedDate', width: 120, render: (v: string) => v ? formatDate(v) : '-' },
+            { title: 'Type', dataIndex: 'propertyType', key: 'propertyType' },
+            { title: 'Category', dataIndex: 'category', key: 'category' },
+            { title: 'Transaction', dataIndex: 'transactionType', key: 'transactionType' },
+            { title: 'Location', dataIndex: 'location', key: 'location', ellipsis: true },
+            { title: 'Price', dataIndex: 'price', key: 'price', render: (v: number) => formatCurrency(v) },
+            { title: 'Carpet Area', dataIndex: 'carpetArea', key: 'carpetArea', responsive: ['md'] as any, render: (v: number) => formatArea(v) },
+            { title: 'Status', dataIndex: 'propertiesstatus', key: 'propertiesstatus', render: (status: PropertyStatus) => (
+                <Tag color={statusColor[status] || 'default'}>{status?.replace('_', ' ')}</Tag>
+            )},
+            { title: 'Posted', dataIndex: 'postedDate', key: 'postedDate', responsive: ['lg'] as any, render: (v: string) => v ? formatDate(v) : '-' },
         ];
+
 
         // Admin sees broker commission
         if (role === UserRole.ADMIN) {
-            cols.splice(6, 0, {
+            cols.push({
                 title: 'Commission',
                 dataIndex: 'brokerCommission',
                 key: 'brokerCommission',
-                width: 120,
                 render: (v: number) => v ? formatCurrency(v) : '-',
             });
         }
 
-        // Action column
+        // Action column - fixed width for the button
         cols.push({
             title: 'Action',
             key: 'action',
-            width: 80,
+            width: 90,
+            fixed: 'right',
             render: (_: unknown, record: Property) => (
                 <Button type="link" icon={<EyeOutlined />} onClick={() => navigate(`/properties/${record.id}`)}>
                     View
@@ -166,7 +166,6 @@ const PropertyList: React.FC = () => {
                     columns={columns}
                     dataSource={data?.items || []}
                     rowKey="id"
-                    scroll={{ x: 1000 }}
                     pagination={{
                         current: page,
                         pageSize,
@@ -176,6 +175,7 @@ const PropertyList: React.FC = () => {
                     }}
                 />
             </Spin>
+
         </div>
     );
 };

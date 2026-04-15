@@ -13,4 +13,8 @@ export const USER_GET_LATEST_CODE_QUERY = `SELECT user_code FROM users WHERE use
 
 export const USER_FIND_ALL_ACTIVE_QUERY = `SELECT * FROM users WHERE status = ?`;
 
+export const USER_FIND_ALL_QUERY = `SELECT * FROM users WHERE status != ?`;
+
+export const USER_FIND_BY_ROLE_QUERY = `SELECT * FROM users WHERE role = ? AND status != ?`;
+
 export const USER_CHECK_EXISTING_QUERY = `SELECT id FROM users WHERE email = ? OR phone = ?`;

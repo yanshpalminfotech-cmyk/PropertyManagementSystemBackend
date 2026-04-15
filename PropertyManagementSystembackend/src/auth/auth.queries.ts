@@ -3,7 +3,8 @@ export const AUTH_GET_ADMIN_COUNT_QUERY = `
 `;
 
 export const AUTH_FIND_USER_BY_EMAIL_QUERY = `
-  SELECT * FROM users WHERE email = ?
+  SELECT id, name, email, role, password_hash, is_locked, failed_login_attempts, status 
+  FROM users WHERE email = ?
 `;
 
 export const AUTH_UPDATE_FAILED_ATTEMPTS_QUERY = `
@@ -48,4 +49,7 @@ export const AUTH_VALIDATE_TOKEN_QUERY = `
 
 export const AUTH_REVOKE_TOKEN_BY_ID_QUERY = `UPDATE tokens SET is_revoked = 1 WHERE id = ?`;
 
-export const AUTH_FIND_USER_BY_ID_QUERY = `SELECT * FROM users WHERE id = ?`;
+export const AUTH_FIND_USER_BY_ID_QUERY = `
+  SELECT id, name, email, role, password_hash, is_locked, failed_login_attempts, status 
+  FROM users WHERE id = ?
+`;

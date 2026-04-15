@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException, ConflictException, Logger, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Logger, ForbiddenException, BadRequestException } from '@nestjs/common';
+
 import { SqlParam } from '../common/types';
 import { DatabaseService } from '../common/database/database.service';
 import { CreateVisitRequestDto } from './dto/create-visit-request.dto';
@@ -20,6 +21,8 @@ import {
   SITE_SLOT_SYNC_STATUS_QUERY,
   VISIT_REQUEST_FIND_ALL_BASE_QUERY,
   VISIT_REQUEST_CHECK_EXISTING_ACTIVE_QUERY,
+  CUSTOMER_BUSY_SLOTS_QUERY,
+  VISIT_REQUEST_CHECK_TIME_CONFLICT_QUERY,
 } from './visit-requests.queries';
 
 export enum VisitRequestStatus {
@@ -39,7 +42,7 @@ export interface IRawVisitRequest {
   status: number;
   created_at: Date;
   updated_at: Date;
-  // Join fields
+  // Join fields — from VISIT_REQUEST_FIND_WITH_BROKER_QUERY and FIND_ALL_BASE_QUERY
   property_code?: string;
   category?: string;
   property_type?: string;
@@ -49,6 +52,7 @@ export interface IRawVisitRequest {
   customer_name?: string;
   customer_email?: string;
   broker_id?: string;
+  interest_level?: string;
 }
 
 export interface IVisitRequest {
@@ -66,6 +70,7 @@ export interface IVisitRequest {
 export interface IVisitRequestWithDetails extends IVisitRequest {
   customerName?: string;
   customerEmail?: string;
+  interestLevel?: string;
   property: {
     id: string;
     propertyCode: string;
@@ -114,7 +119,7 @@ export class VisitRequestsService {
     }
 
     return this.db.transaction(async (conn) => {
-      // Check for existing active (unexpired) requests for the same property
+      // Guard 1: same customer + same property + active request
       const existing = await this.db.execute(conn, VISIT_REQUEST_CHECK_EXISTING_ACTIVE_QUERY, [
         user.id,
         propertyId,
@@ -126,6 +131,21 @@ export class VisitRequestsService {
       if (existing.length > 0) {
         const { visit_request_status } = existing[0];
         throw new ConflictException(`You already have an active visit request for this property with status ${visit_request_status}.`);
+      }
+
+      // Guard 2: same customer + same date + same start_time on ANY property
+      // A customer cannot physically visit two properties at the same time.
+      const timeConflict = await this.db.execute(conn, VISIT_REQUEST_CHECK_TIME_CONFLICT_QUERY, [
+        user.id,
+        visitDate,
+        startTime,
+        STATUS.ACTIVE,
+        VisitRequestStatus.PENDING,
+        VisitRequestStatus.CONFIRMED,
+      ]) as Array<{ id: string }>;
+
+      if (timeConflict.length > 0) {
+        throw new ConflictException(`You already have a visit scheduled at ${startTime} on ${visitDate}. A customer cannot be at two properties simultaneously.`);
       }
 
       const [property] = await this.db.execute(conn, PROPERTY_CHECK_ACTIVE_QUERY, [
@@ -185,6 +205,59 @@ export class VisitRequestsService {
         }
       }
 
+      if (status === VisitRequestStatus.COMPLETED) {
+        // Only the property broker or admin can mark a visit as completed
+        if (user.role !== UserRole.ADMIN && (user.role !== UserRole.BROKER || visit.broker_id !== user.id)) {
+          throw new ForbiddenException('Only the property broker can mark this visit as completed');
+        }
+
+        // Cannot mark as complete before the slot end time has passed
+        if (visit.visit_date && visit.end_time) {
+          // 1. Extract YYYY-MM-DD regardless of whether visit_date is a Date object or string
+          const rawDate = visit.visit_date;
+          let dateStr: string;
+          if (Object.prototype.toString.call(rawDate) === '[object Date]') {
+            // Handle Date object (ensure we use local date parts if it's from MySQL local)
+            const d = rawDate as unknown as Date;
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            dateStr = `${y}-${m}-${day}`;
+          } else {
+            // Handle string "YYYY-MM-DD ..."
+            dateStr = String(rawDate).substring(0, 10);
+          }
+
+          // 2. Extract HH:MM:SS from end_time
+          const endTimeStr = String(visit.end_time).substring(0, 8);
+
+          // 3. Construct slot end in IST
+          const slotEndIST = new Date(`${dateStr}T${endTimeStr}+05:30`);
+          const now = new Date();
+
+          if (now < slotEndIST) {
+            const slotFormatted = slotEndIST.toLocaleString('en-IN', {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+              timeZone: 'Asia/Kolkata',
+            });
+            const nowFormatted = now.toLocaleString('en-IN', {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+              timeZone: 'Asia/Kolkata',
+            });
+
+            throw new BadRequestException(
+              `Visit cannot be marked as completed before the slot ends. ` +
+              `Slot ends at ${slotFormatted}. (Current time: ${nowFormatted})`
+            );
+          }
+        }
+
+
+
+      }
+
       if (status === VisitRequestStatus.CANCELLED) {
         const isCustomerOwner = user.role === UserRole.CUSTOMER && visit.customer_id === user.id;
         const isBrokerOwner = user.role === UserRole.BROKER && visit.broker_id === user.id;
@@ -200,7 +273,16 @@ export class VisitRequestsService {
 
       await this.db.execute(conn, VISIT_REQUEST_UPDATE_STATUS_QUERY, [status, id]);
 
-      const slotStatus = status === VisitRequestStatus.CONFIRMED ? SlotStatus.BOOKED : SlotStatus.CANCELLED;
+      // Sync the slot status:
+      // CONFIRMED  → BOOKED      (slot is reserved)
+      // CANCELLED  → AVAILABLE   (slot is freed for other users)
+      // COMPLETED  → AVAILABLE   (visit is done, slot can be reused)
+      let slotStatus: SlotStatus;
+      if (status === VisitRequestStatus.CONFIRMED) {
+        slotStatus = SlotStatus.BOOKED;
+      } else {
+        slotStatus = SlotStatus.AVAILABLE;
+      }
       await this.db.execute(conn, SITE_SLOT_SYNC_STATUS_QUERY, [slotStatus, visit.slot_id]);
 
       const [updated] = await this.db.execute(conn, VISIT_REQUEST_FIND_BY_ID_QUERY, [id]) as IRawVisitRequest[];
@@ -232,6 +314,7 @@ export class VisitRequestsService {
         ...request,
         ...(raw.customer_name && { customerName: raw.customer_name }),
         ...(raw.customer_email && { customerEmail: raw.customer_email }),
+        ...(raw.interest_level && { interestLevel: raw.interest_level }),
         property: {
           id: raw.property_id,
           propertyCode: raw.property_code ?? 'N/A',

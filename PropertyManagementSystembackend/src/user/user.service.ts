@@ -12,8 +12,11 @@ import {
   USER_UNLOCK_QUERY,
   USER_SOFT_DELETE_QUERY,
   USER_FIND_ALL_ACTIVE_QUERY,
+  USER_FIND_ALL_QUERY,
+  USER_FIND_BY_ROLE_QUERY,
   USER_CHECK_EXISTING_QUERY
 } from './user.queries';
+
 
 export interface IRawUser {
   id: string;
@@ -122,11 +125,21 @@ export class UserService {
     });
   }
 
-  async findAll(): Promise<IUser[]> {
-    const rows = await this.db.query(
-      USER_FIND_ALL_ACTIVE_QUERY,
-      [STATUS.ACTIVE]
-    ) as IRawUser[];
+  async findAll(role?: string): Promise<IUser[]> {
+    let rows: IRawUser[];
+
+    if (role) {
+      rows = await this.db.query(
+        USER_FIND_BY_ROLE_QUERY,
+        [role, STATUS.DELETED]
+      ) as IRawUser[];
+    } else {
+      rows = await this.db.query(
+        USER_FIND_ALL_QUERY,
+        [STATUS.DELETED]
+      ) as IRawUser[];
+    }
+
     return rows.map((row) => this.mapUser(row)).filter((u): u is IUser => u !== null);
   }
 
@@ -156,22 +169,29 @@ export class UserService {
       userCode: 'user_code',
       passwordHash: 'password_hash',
       failedLoginAttempts: 'failed_login_attempts',
-      isLocked: 'is_locked'
+      isLocked: 'is_locked',
     };
 
-    (Object.keys(updateUserDto) as Array<keyof UpdateUserDto>).forEach(key => {
+    // If password is provided, hash it first
+    if (updateUserDto.password) {
+      const salt = await bcrypt.genSalt();
+      (updateUserDto as any).passwordHash = await bcrypt.hash(updateUserDto.password, salt);
+      delete updateUserDto.password;
+    }
+
+    (Object.keys(updateUserDto) as Array<keyof UpdateUserDto>).forEach((key) => {
       const val = updateUserDto[key];
       if (val !== undefined) {
         const col = colMap[key as string] || (key as string);
         updates.push(`${col} = ?`);
-        params.push(val);
+        params.push(val as SqlParam);
       }
     });
 
     if (updates.length > 0) {
       params.push(id);
       await this.db.query(
-        `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
+        `UPDATE users SET ${updates.join(', ')}, updated_at = NOW() WHERE id = ?`,
         params
       );
     }

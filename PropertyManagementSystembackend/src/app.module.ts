@@ -22,6 +22,7 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { AuthMiddleware } from './auth/middleware/auth.middleware';
 import { PublicRouteMiddleware } from './auth/middleware/public.middleware';
 import { DatabaseModule } from './common/database/database.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { DatabaseModule } from './common/database/database.module';
     SiteSlotsModule,
     VisitRequestsModule,
     VisitFeedbackModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

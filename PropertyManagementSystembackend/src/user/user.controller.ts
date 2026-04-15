@@ -1,17 +1,8 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  UseGuards,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpStatus, Query } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 // import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -35,10 +26,10 @@ export class UserController {
 
   @Get()
   @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get all active users' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Return all active users' })
-  findAll() {
-    return this.userService.findAll();
+  @ApiOperation({ summary: 'Get all users with optional role filtering' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Return all users' })
+  findAll(@Query('role') role?: string) {
+    return this.userService.findAll(role);
   }
 
   @Get(':id')

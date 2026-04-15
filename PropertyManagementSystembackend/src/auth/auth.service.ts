@@ -4,8 +4,10 @@ import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '../common/database/database.service';
 import { LoginDto } from './dto/login.dto';
 import { UserService } from '../user/user.service';
+import { STATUS } from '../common/enums/status.constant';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+
 import { v4 as uuidv4 } from 'uuid';
 import { RegisterDto } from './dto/register.dto';
 import {
@@ -37,6 +39,7 @@ export interface IRawAuthUser {
   password_hash: string;
   is_locked: number | boolean;
   failed_login_attempts: number;
+  status: number;
 }
 
 export interface IRawAuthToken {
@@ -64,6 +67,7 @@ export interface IUser {
   passwordHash?: string;
   isLocked: boolean;
   failedLoginAttempts: number;
+  status: number;
 }
 
 export enum TokenType {
@@ -95,6 +99,7 @@ export class AuthService {
       passwordHash: raw.password_hash,
       isLocked: Boolean(raw.is_locked),
       failedLoginAttempts: raw.failed_login_attempts,
+      status: raw.status,
     };
 
     if (!isSensitiveRequest) {
@@ -149,6 +154,10 @@ export class AuthService {
 
     if (user.isLocked) {
       throw new BadRequestException('Account is locked. Please contact admin or use unlock endpoint.');
+    }
+
+    if (user.status !== STATUS.ACTIVE) {
+      throw new UnauthorizedException('Account is inactive or deleted. Please contact an administrator.');
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash || '');
@@ -258,6 +267,11 @@ export class AuthService {
       if (user.isLocked) {
         this.logger.warn(`Refresh attempt by locked user ${user.id}`);
         throw new UnauthorizedException('Account is locked. Please contact an administrator.');
+      }
+
+      if (user.status !== STATUS.ACTIVE) {
+        this.logger.warn(`Refresh attempt by inactive/deleted user ${user.id}`);
+        throw new UnauthorizedException('Account is inactive or deleted.');
       }
 
       await this.db.query(AUTH_REVOKE_TOKEN_BY_ID_QUERY, [row.t_id as string]);

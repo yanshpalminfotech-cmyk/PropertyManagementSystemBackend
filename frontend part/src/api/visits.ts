@@ -1,5 +1,6 @@
 import apiClient from './axios';
-import type { VisitRequest, CreateVisitRequestDto, CreateVisitFeedbackDto, TimeSlot } from '../types/VisitRequest';
+import type { VisitRequest, CreateVisitRequestDto, CreateVisitFeedbackDto, TimeSlot, VisitFeedbackDetail } from '../types/VisitRequest';
+
 
 /** Get available slots for a property on a date */
 export const getAvailableSlots = async (propertyId: string, date: string): Promise<TimeSlot[]> => {
@@ -36,7 +37,19 @@ export const completeVisitRequest = async (id: string): Promise<void> => {
     await apiClient.patch(`/visit-requests/${id}/complete`, { status: 'COMPLETED' });
 };
 
-/** Submit feedback for a visit (Customer only) */
+/** Submit feedback for a visit (Customer only — one time) */
 export const submitVisitFeedback = async (id: string, data: CreateVisitFeedbackDto): Promise<void> => {
-    await apiClient.patch(`/visit-requests/${id}/feedback`, data);
+    await apiClient.post(`/visit-requests/${id}/feedback`, data);
 };
+
+/** Get all visit feedbacks (Admin: all, Broker: own properties) */
+export const getFeedbacks = async (): Promise<VisitFeedbackDetail[]> => {
+    const response = await apiClient.get('/visit-feedback');
+    return response.data;
+};
+/** Get all visit feedbacks for a property (Admin/Broker) */
+export const getFeedbackByPropertyId = async (propertyId: string): Promise<VisitFeedbackDetail[]> => {
+    const response = await apiClient.get(`/visit-feedback/property/${propertyId}`);
+    return response.data;
+};
+

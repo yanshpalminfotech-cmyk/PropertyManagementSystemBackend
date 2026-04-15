@@ -15,7 +15,8 @@ export interface VisitRequest {
     customerId: string;
     slotId: string;
     visitRequestStatus: VisitRequestStatus;
-    interestLevel?: InterestLevel;
+    /** Set when feedback has been submitted — used to hide the Leave Feedback button */
+    interestLevel?: string;
     feedback?: string;
     customerName?: string;
     customerEmail?: string;
@@ -48,4 +49,29 @@ export interface CreateVisitRequestDto {
 export interface CreateVisitFeedbackDto {
     interestLevel: InterestLevel;
     feedback?: string;
+}
+
+/** Rich feedback record returned by GET /visit-feedback */
+export interface VisitFeedbackDetail {
+    id: string;
+    visitRequestId: string;
+    visitCode: string;
+    interestLevel: string;
+    feedback: string;
+    createdAt: string;
+    visitDate: string;
+    startTime: string;
+    endTime: string;
+    property: {
+        id: string;
+        propertyCode: string;
+        propertyType: string;
+        category: string;
+        location: string;
+    };
+    customer: {
+        id: string;
+        name: string;
+        email: string;
+    };
 }

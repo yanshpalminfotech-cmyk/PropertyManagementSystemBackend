@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import {
-    Descriptions, Button, Spin, Result, Tag, Modal, DatePicker, Select, notification, Alert, Space,
+    Descriptions, Button, Spin, Result, Tag, Modal, DatePicker, Select, notification, Alert, Space, List, Typography, Divider
 } from 'antd';
 import { EditOutlined, DeleteOutlined, CalendarOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getPropertyById, deleteProperty } from '../../api/properties';
-import { getAvailableSlots, createVisitRequest } from '../../api/visits';
-import { useAuthStore } from '../../stores/useAuthStore';
-import { UserRole, PropertyStatus } from '../../types/enums';
-import { formatCurrency } from '../../utils/formatCurrency';
-import { formatArea } from '../../utils/formatArea';
-import { formatDate } from '../../utils/formatDate';
+import { getPropertyById, deleteProperty } from '@/api/properties';
+import { getAvailableSlots, createVisitRequest, getFeedbackByPropertyId } from '@/api/visits';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { UserRole, PropertyStatus } from '@/types/enums';
+import type { VisitFeedbackDetail } from '@/types/VisitRequest';
+import { formatCurrency } from '@/utils/formatCurrency';
+import { formatArea } from '@/utils/formatArea';
+import { formatDate } from '@/utils/formatDate';
 import dayjs, { type Dayjs } from 'dayjs';
 
 const { Option } = Select;
@@ -32,10 +33,15 @@ const PropertyDetail: React.FC = () => {
     const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
     const [visitError, setVisitError] = useState<string | null>(null);
 
-    const { data: property, isLoading, isError } = useQuery({
+    const { data: property, isLoading, isError, error } = useQuery({
         queryKey: ['property', id],
         queryFn: () => getPropertyById(id!),
         enabled: Boolean(id),
+        retry: (failCount, err: { response?: { status?: number } }) => {
+            // Don't retry on 403 — broker accessing another broker's property
+            if (err?.response?.status === 403) return false;
+            return failCount < 1;
+        },
     });
 
     const { data: slots, isLoading: isLoadingSlots } = useQuery({
@@ -43,6 +49,12 @@ const PropertyDetail: React.FC = () => {
         queryFn: () => getAvailableSlots(id!, visitDate!),
         enabled: visitModalOpen && Boolean(id && visitDate),
         refetchInterval: 120000, // Refetch every 2 minutes
+    });
+
+    const { data: feedbackList, isLoading: isLoadingFeedback } = useQuery({
+        queryKey: ['property-feedback', id],
+        queryFn: () => getFeedbackByPropertyId(id!),
+        enabled: Boolean(id && (role === UserRole.ADMIN || role === UserRole.BROKER)),
     });
 
     const availableSlots = Array.isArray(slots) ? slots : [];
@@ -96,7 +108,21 @@ const PropertyDetail: React.FC = () => {
     };
 
     if (isLoading) return <Spin size="large" style={{ display: 'block', margin: '80px auto' }} />;
-    if (isError || !property) return <Result status="error" title="Failed to load property" />;
+
+    // Broker tried to access another broker's property — show friendly 403
+    const is403 = isError && (error as { response?: { status?: number } })?.response?.status === 403;
+    if (is403) {
+        return (
+            <Result
+                status="403"
+                title="Access Denied"
+                subTitle="You can only view your own properties."
+                extra={<Button type="primary" onClick={() => navigate('/properties')}>Back to My Properties</Button>}
+            />
+        );
+    }
+
+    if (isError || !property) return <Result status="error" title="Failed to load property" extra={<Button onClick={() => navigate('/properties')}>Back</Button>} />;
 
     const isAdmin = role === UserRole.ADMIN;
     const isBroker = role === UserRole.BROKER;
@@ -108,6 +134,13 @@ const PropertyDetail: React.FC = () => {
         [PropertyStatus.UNDER_NEGOTIATION]: 'orange',
         [PropertyStatus.SOLD]: 'default',
         [PropertyStatus.RENTED]: 'default',
+    };
+
+    const interestLevelColor: Record<string, string> = {
+        'VERY_INTERESTED': 'volcano',
+        'INTERESTED': 'green',
+        'MAYBE': 'orange',
+        'NOT_INTERESTED': 'red',
     };
 
     return (
@@ -176,6 +209,44 @@ const PropertyDetail: React.FC = () => {
                     <Descriptions.Item label="Broker">{property.brokerName || '-'}</Descriptions.Item>
                 )}
             </Descriptions>
+
+            {/* Visit Feedback Section — Admin/Broker only */}
+            {(isAdmin || isBroker) && (
+                <div style={{ marginTop: 32 }}>
+                    <Divider />
+                    <Typography.Title level={4}>Visit Feedback History</Typography.Title>
+                    <List
+                        loading={isLoadingFeedback}
+                        itemLayout="horizontal"
+                        dataSource={feedbackList || []}
+                        locale={{ emptyText: 'No feedback submitted for this property yet.' }}
+                        renderItem={(item: VisitFeedbackDetail) => (
+                            <List.Item>
+                                <List.Item.Meta
+                                    title={
+                                        <Space>
+                                            <Typography.Text strong>{item.customer.name}</Typography.Text>
+                                            <Tag color={interestLevelColor[item.interestLevel]}>
+                                                {item.interestLevel.replace('_', ' ')}
+                                            </Tag>
+                                            <Typography.Text type="secondary" style={{ fontSize: '0.85em' }}>
+                                                • {formatDate(item.visitDate)} ({item.startTime} - {item.endTime})
+                                            </Typography.Text>
+                                        </Space>
+                                    }
+                                    description={
+                                        <div style={{ marginTop: 4 }}>
+                                            <Typography.Paragraph italic type="secondary" style={{ marginBottom: 0 }}>
+                                                "{item.feedback || 'No comments provided'}"
+                                            </Typography.Paragraph>
+                                        </div>
+                                    }
+                                />
+                            </List.Item>
+                        )}
+                    />
+                </div>
+            )}
 
             {/* Site Visit Modal */}
             <Modal

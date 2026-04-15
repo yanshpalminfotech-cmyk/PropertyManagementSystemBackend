@@ -12,6 +12,7 @@ import {
   SITE_SLOT_FIND_BY_ID_QUERY,
   SITE_SLOT_UPDATE_LOCK_QUERY,
   SITE_SLOT_UPDATE_STATUS_QUERY,
+  CUSTOMER_BUSY_SLOTS_QUERY,
 } from './site-slots.queries';
 
 export enum SlotStatus {
@@ -134,7 +135,7 @@ export class SiteSlotsService {
     return slots;
   }
 
-  async getAvailableSlots(propertyId: string, visitDate: string): Promise<ISlot[]> {
+  async getAvailableSlots(propertyId: string, visitDate: string, userId?: string): Promise<ISlot[]> {
     if (!propertyId || !visitDate) {
       throw new BadRequestException('propertyId and visitDate are required');
     }
@@ -147,6 +148,7 @@ export class SiteSlotsService {
     }
     const allSlots = this.generateSlots(startHour);
 
+    // 1. Slots already taken for this property (BOOKED, REQUESTED, or actively LOCKED)
     const bookedSlots = await this.db.query(SITE_SLOT_FIND_BOOKED_QUERY, [
       propertyId,
       visitDate,
@@ -156,9 +158,20 @@ export class SiteSlotsService {
       SlotStatus.LOCKED,
     ]) as { start_time: string }[];
 
-    const bookedStartTimes = bookedSlots.map((slot) => slot.start_time);
+    const blockedTimes = new Set(bookedSlots.map((s) => s.start_time));
 
-    return allSlots.filter((slot) => !bookedStartTimes.includes(slot.startTime));
+    // 2. If the caller is a known customer, also block times they are already
+    //    visiting ANY other property (PENDING or CONFIRMED) — can't be in two places.
+    if (userId) {
+      const busySlots = await this.db.query(CUSTOMER_BUSY_SLOTS_QUERY, [
+        userId,
+        visitDate,
+      ]) as { start_time: string }[];
+
+      busySlots.forEach((s) => blockedTimes.add(s.start_time));
+    }
+
+    return allSlots.filter((slot) => !blockedTimes.has(slot.startTime));
   }
 
   async lockSlot(dto: LockSlotDto, userId: string): Promise<ISiteSlot | null> {

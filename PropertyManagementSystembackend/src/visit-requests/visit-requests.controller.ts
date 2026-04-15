@@ -70,17 +70,18 @@ export class VisitRequestsController {
     return this.visitRequestsService.findAllMy(req.user);
   }
 
-  @Patch(':id/feedback')
+  @Post(':id/feedback')
   @Roles(UserRole.CUSTOMER)
   @UseGuards(RolesGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Submit feedback for a completed visit' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Feedback submitted successfully' })
+  @ApiOperation({ summary: 'Submit feedback for a completed visit (one-time only)' })
+  @ApiResponse({ status: HttpStatus.CREATED, description: 'Feedback submitted successfully' })
+  @ApiResponse({ status: HttpStatus.CONFLICT, description: 'Feedback has already been submitted for this visit' })
   async addFeedback(
     @Param('id') id: string,
     @Body() dto: CreateVisitFeedbackDto,
     @Request() req: AuthenticatedRequest,
   ) {
-    return this.feedbackService.upsertFeedback(id, dto, req.user);
+    return this.feedbackService.createFeedback(id, dto, req.user);
   }
 }

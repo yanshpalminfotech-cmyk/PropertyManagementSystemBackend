@@ -22,8 +22,11 @@ export class SiteSlotsController {
   async getSlots(
     @Param('propertyId') propertyId: string,
     @Query('date') date: string,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.siteSlotsService.getAvailableSlots(propertyId, date);
+    // Pass the user ID so slots the customer already has visits for are hidden
+    const userId = req.user?.id;
+    return this.siteSlotsService.getAvailableSlots(propertyId, date, userId);
   }
 
   @Post('lock')

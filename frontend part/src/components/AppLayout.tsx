@@ -6,6 +6,8 @@ import {
   CalendarOutlined,
   LogoutOutlined,
   UserOutlined,
+  MessageOutlined,
+  SolutionOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -58,12 +60,33 @@ const AppLayout: React.FC = () => {
     });
   }
 
+  // Manage Users — Admin only
+  if (role === UserRole.ADMIN) {
+    menuItems.push({
+      key: '/customers',
+      icon: <UserOutlined />,
+      label: 'Customers',
+    });
+    menuItems.push({
+      key: '/brokers',
+      icon: <SolutionOutlined />,
+      label: 'Brokers',
+    });
+  }
+
+
   // Manage Visits — Admin & Broker
+
   if (role === UserRole.ADMIN || role === UserRole.BROKER) {
     menuItems.push({
       key: '/visit-management',
       icon: <CalendarOutlined />,
       label: 'Manage Visits',
+    });
+    menuItems.push({
+      key: '/feedback',
+      icon: <MessageOutlined />,
+      label: 'Feedback',
     });
   }
 

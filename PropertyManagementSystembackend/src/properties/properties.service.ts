@@ -287,7 +287,7 @@ export class PropertiesService {
     });
   }
 
-  async findAll(query: PropertyQueryDto, currentUser?: UserInfo, brokerId?: string): Promise<{ items: IProperty[], total: number, page: number, lastPage: number }> {
+  async findAll(query: PropertyQueryDto, currentUser?: UserInfo): Promise<{ items: IProperty[], total: number, page: number, lastPage: number }> {
     const {
       page = 1,
       limit = 10,
@@ -305,6 +305,7 @@ export class PropertiesService {
     const params: SqlParam[] = [];
 
     if (currentUser?.role === UserRole.ADMIN) {
+      // Admin can see all properties and filter by record status
       if (status && status !== AdminPropertyQueryStatus.ALL) {
         const statusMap: Record<string, number> = {
           [AdminPropertyQueryStatus.ACTIVE]: STATUS.ACTIVE,
@@ -314,7 +315,12 @@ export class PropertiesService {
         sql += ` AND p.status = ?`;
         params.push(statusMap[status]);
       }
+    } else if (currentUser?.role === UserRole.BROKER) {
+      // Broker sees only their own properties in all availability states
+      sql += ` AND p.status = ? AND p.broker_id = ?`;
+      params.push(STATUS.ACTIVE, currentUser.id);
     } else {
+      // Customer / guest: only ACTIVE + AVAILABLE + open for visits
       sql += ` AND p.status = ?`;
       params.push(STATUS.ACTIVE);
 
@@ -323,11 +329,6 @@ export class PropertiesService {
 
       sql += ` AND p.available_for_visit = ? AND p.propertiesstatus = ?`;
       params.push(visitFlag, statusFlag);
-    }
-
-    if (brokerId) {
-      sql += ` AND p.broker_id = ?`;
-      params.push(brokerId);
     }
 
     if (search) {
@@ -384,11 +385,17 @@ export class PropertiesService {
       throw new NotFoundException(`Property with ID ${id} not found`);
     }
 
+    // Broker can only view their own property's detail
+    if (currentUser?.role === UserRole.BROKER && row.broker_id !== currentUser.id) {
+      throw new ForbiddenException('You can only view your own properties');
+    }
+
     return this.mapProperty(row, currentUser);
   }
 
   async findMyProperties(query: PropertyQueryDto, user: UserInfo): Promise<{ items: IProperty[], total: number, page: number, lastPage: number }> {
-    return this.findAll({ ...query }, user, user.id);
+    // findAll already auto-scopes to broker's own properties when role is BROKER
+    return this.findAll({ ...query }, user);
   }
 
   async update(id: string, updatePropertyDto: UpdatePropertyDto, user: UserInfo): Promise<IProperty | null> {
